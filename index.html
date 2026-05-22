@@ -7,7 +7,7 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<title>CRM Кофе</title>
+<title>MegaUG CRM</title>
 <link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@400;600;700&family=Golos+Text:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
@@ -144,33 +144,48 @@ body{font-family:var(--font-body);background:var(--bg);color:var(--text);min-hei
 <!-- CONFIG -->
 <div id="config-overlay">
   <div class="config-box">
-    <div class="config-logo">☕ CRM Кофе</div>
+    <div class="config-logo"><span style="font-family:var(--font-head);font-size:28px;font-weight:700;letter-spacing:.05em;color:#fff">MEGA<span style="color:var(--accent)">UG</span></span></div>
     <div class="config-sub">Настройка подключения к Google Sheets</div>
     <div class="config-field">
       <label>Ваше имя (торговый представитель)</label>
       <select id="cfg-name">
         <option value="">— выберите —</option>
-        <option>Житнюк</option>
-        <option>Бойко</option>
-        <option>Яковлев</option>
-        <option>Добрев</option>
+        <optgroup label="Супервайзер / Бухгалтер">
+          <option value="Долженко">Долженко Эдуард</option>
+          <option value="Коева">Коева Александра</option>
+          <option value="Ковальская">Ковальская Яна</option>
+        </optgroup>
+        <optgroup label="Торговые агенты">
+          <option value="Добрев">Добрев Руслан</option>
+          <option value="Житнюк">Житнюк Валентин</option>
+          <option value="Бойко">Бойко Иван</option>
+          <option value="Яковлев">Яковлев Саша</option>
+        </optgroup>
+        <optgroup label="Техники">
+          <option value="Кухарь">Кухарь Сергей</option>
+          <option value="Зинчук">Зинчук Станислав</option>
+        </optgroup>
       </select>
     </div>
     <div class="config-field">
+      <label>ПАРОЛЬ</label>
+      <input id="cfg-password" type="password" placeholder="Введите пароль">
+    </div>
+    <div class="config-field" id="cfg-url-field">
       <label>URL Apps Script</label>
       <input id="cfg-script-url" type="text" placeholder="https://script.google.com/macros/s/.../exec">
-      <div class="config-hint">Расширения → Apps Script → Развернуть → URL веб-приложения</div>
+      <div class="config-hint">Вводится один раз — сохраняется автоматически</div>
     </div>
-    <button class="btn-primary" onclick="saveConfig()">Войти в приложение</button>
+    <button class="btn-primary" onclick="saveConfig()">Войти</button>
     <div id="cfg-error" style="display:none;margin-top:8px;padding:10px 14px;background:#ff6b6b22;border:1px solid #ff6b6b55;border-radius:8px;font-size:13px;color:#ff6b6b;text-align:center"></div>
-    <div class="config-saved" id="cfg-saved">✓ Настройки сохранены</div>
+    <div class="config-saved" id="cfg-saved">✓ Сохранено, загружаем...</div>
   </div>
 </div>
 
 <!-- APP -->
 <div id="app">
   <div class="topbar">
-    <div class="topbar-logo">☕ CRM</div>
+    <div class="topbar-logo" onclick="fetchAllData()" title="Обновить данные" style="cursor:pointer;user-select:none"><span style="font-family:var(--font-head);font-size:18px;font-weight:700;letter-spacing:.05em;color:#fff">MEGA<span style="color:var(--accent)">UG</span></span></div>
     <div id="load-status" style="display:none;font-size:11px;padding:3px 10px;border-radius:20px;background:var(--bg3);max-width:200px;text-align:center;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></div>
     <div class="topbar-user"><div class="topbar-dot"></div><span id="topbar-name">—</span></div>
     <button class="topbar-settings" onclick="openConfig()">⚙</button>
@@ -236,6 +251,10 @@ body{font-family:var(--font-body);background:var(--bg);color:var(--text);min-hei
       <div class="cc-row"><div class="cc-label">Адрес</div><div class="cc-val" id="cc-address">—</div></div>
       <div class="cc-row"><div class="cc-label">Контакт</div><div class="cc-val" id="cc-contact">—</div></div>
       <div class="cc-row"><div class="cc-label">Аппарат</div><div class="cc-val" id="cc-equip">—</div></div>
+      <div class="cc-row" id="cc-last-visit-row" style="display:none">
+        <div class="cc-label">Посл. визит</div>
+        <div class="cc-val" id="cc-last-visit">—</div>
+      </div>
       <div class="cc-row" id="cc-extra-row"><div class="cc-label">Доп.инвентарь</div><div class="cc-val" id="cc-extra" style="font-size:12px;color:var(--muted)">—</div></div>
       <div class="cc-row" id="cc-service-row"><div class="cc-label">Сервис</div><div class="cc-val" id="cc-service" style="font-size:12px;color:var(--muted)">—</div></div>
       <div class="cc-row"><div class="cc-label">День визита</div><div class="cc-val"><span class="badge" id="cc-day">—</span></div></div>
@@ -244,53 +263,51 @@ body{font-family:var(--font-body);background:var(--bg);color:var(--text);min-hei
       <div class="cc-row"><div class="cc-label">Примечание</div><div class="cc-val" id="cc-note" style="font-size:12px;color:var(--muted)">—</div></div>
       <div class="cc-row"><div class="cc-label">Коеф. кофе</div><div class="cc-val" id="cc-koef">—</div></div>
       <div>
-        <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-bottom:6px">Прайс</div>
+        <div style="font-family:var(--font-head);font-size:11px;font-weight:700;color:var(--accent);text-transform:uppercase;letter-spacing:.1em;margin:14px 0 6px;padding:6px 10px;background:rgba(255,160,50,.08);border-radius:8px;border-left:3px solid var(--accent)">💰 ПРАЙС (грн/кг)</div>
         <div id="cc-prices-wrap"></div>
       </div>
     </div>
 
     <div class="section-title">Остатки у клиента</div>
     <div class="input-grid">
-      <div class="input-group"><label>Кофе</label><input type="number" id="ost-kofe" step="0.001" min="0" placeholder="0.000" oninput="checkOstatok('ost-kofe',window._autoOst&&window._autoOst.kofe,'Кофе')"><div class="unit">кг</div></div>
-      <div class="input-group"><label>Молоко</label><input type="number" id="ost-mol" step="0.001" min="0" placeholder="0.000" oninput="checkOstatok('ost-mol',window._autoOst&&window._autoOst.mol,'Молоко')"><div class="unit">кг</div></div>
-      <div class="input-group" id="ost-vis-wrap"><label>Виски</label><input type="number" id="ost-vis" step="0.001" min="0" placeholder="0.000" oninput="checkOstatok('ost-vis',window._autoOst&&window._autoOst.vis,'Виски')"><div class="unit">кг</div></div>
-      <div class="input-group" id="ost-shok-wrap"><label>Шоколад</label><input type="number" id="ost-shok" step="0.001" min="0" placeholder="0.000"><div class="unit">кг</div></div>
-      <div class="input-group" id="ost-moroz-wrap"><label>Мороженое</label><input type="number" id="ost-moroz" step="0.001" min="0" placeholder="0.000"><div class="unit">кг</div></div>
+      <div class="input-group"><label>Кофе</label><input inputmode="decimal" type="number" id="ost-kofe" step="0.001" min="0" placeholder="0.000" oninput="checkOstatok('ost-kofe',window._autoOst&&window._autoOst.kofe,'Кофе')"><div class="unit">кг</div></div>
+      <div class="input-group"><label>Молоко</label><input inputmode="decimal" type="number" id="ost-mol" step="0.001" min="0" placeholder="0.000" oninput="checkOstatok('ost-mol',window._autoOst&&window._autoOst.mol,'Молоко')"><div class="unit">кг</div></div>
+      <div class="input-group" id="ost-vis-wrap"><label>Виски</label><input inputmode="decimal" type="number" id="ost-vis" step="0.001" min="0" placeholder="0.000" oninput="checkOstatok('ost-vis',window._autoOst&&window._autoOst.vis,'Виски')"><div class="unit">кг</div></div>
+      <div class="input-group" id="ost-shok-wrap"><label>Шоколад</label><input inputmode="decimal" type="number" id="ost-shok" step="0.001" min="0" placeholder="0.000"><div class="unit">кг</div></div>
+      <div class="input-group" id="ost-moroz-wrap"><label>Мороженое</label><input inputmode="decimal" type="number" id="ost-moroz" step="0.001" min="0" placeholder="0.000"><div class="unit">кг</div></div>
     </div>
 
     <div class="section-title">Заявка</div>
     <div class="input-grid">
-      <div class="input-group"><label>Кофе</label><input type="number" id="zay-kofe" step="0.1" min="0" placeholder="0.0"><div class="unit">кг</div></div>
-      <div class="input-group"><label>Молоко</label><input type="number" id="zay-mol" step="0.1" min="0" placeholder="0.0"><div class="unit">кг</div></div>
-      <div class="input-group" id="zay-vis-wrap"><label>Виски</label><input type="number" id="zay-vis" step="0.1" min="0" placeholder="0.0"><div class="unit">кг</div></div>
-      <div class="input-group" id="zay-shok-wrap"><label>Шоколад</label><input type="number" id="zay-shok" step="0.1" min="0" placeholder="0.0"><div class="unit">кг</div></div>
-      <div class="input-group" id="zay-moroz-wrap"><label>Мороженое</label><input type="number" id="zay-moroz" step="0.1" min="0" placeholder="0.0"><div class="unit">кг</div></div>
+      <div class="input-group"><label>Кофе</label><input inputmode="decimal" type="number" id="zay-kofe" step="0.1" min="0" placeholder="0.0"><div class="unit">кг</div></div>
+      <div class="input-group"><label>Молоко</label><input inputmode="decimal" type="number" id="zay-mol" step="0.1" min="0" placeholder="0.0"><div class="unit">кг</div></div>
+      <div class="input-group" id="zay-vis-wrap"><label>Виски</label><input inputmode="decimal" type="number" id="zay-vis" step="0.1" min="0" placeholder="0.0"><div class="unit">кг</div></div>
+      <div class="input-group" id="zay-shok-wrap"><label>Шоколад</label><input inputmode="decimal" type="number" id="zay-shok" step="0.1" min="0" placeholder="0.0"><div class="unit">кг</div></div>
+      <div class="input-group" id="zay-moroz-wrap"><label>Мороженое</label><input inputmode="decimal" type="number" id="zay-moroz" step="0.1" min="0" placeholder="0.0"><div class="unit">кг</div></div>
     </div>
+
+    <div class="section-title">Счётчики аппарата</div>
+    <div style="font-size:12px;color:var(--muted);margin-bottom:8px;line-height:1.5">В случае наличия на кофеаппарате только одного показания — обе графы заполнить одинаково.</div>
+    <div class="input-grid">
+      <div class="input-group">
+        <label>Общий счётчик</label>
+        <input inputmode="numeric" type="number" id="general-counter" step="1" min="0" placeholder="25000" oninput="checkCounterDiff()">
+        <div class="unit">порции</div>
+      </div>
+      <div class="input-group">
+        <label>Промежуточный счётчик</label>
+        <input inputmode="numeric" type="number" id="engineer-counter" step="1" min="0" placeholder="100" oninput="checkCounterDiff()">
+        <div class="unit">порции</div>
+      </div>
+    </div>
+    <div id="counter-diff-warn" style="display:none;margin-top:8px;padding:10px 14px;background:rgba(255,107,107,.15);border:1px solid var(--danger);border-radius:10px;font-size:13px;color:var(--danger);font-weight:600"></div>
 
     <div class="section-title">Счётчики по напиткам</div>
     <div style="font-size:11px;color:var(--muted);margin-bottom:10px">Показаны только напитки у которых заданы нормы расхода</div>
     <div class="drinks-list" id="drinks-list"><div class="empty-state">Сначала выберите клиента</div></div>
 
-    <div class="section-title">Счётчики аппарата</div>
-    <div style="font-size:12px;color:var(--muted);margin-bottom:8px;line-height:1.5">
-      Инженерный счётчик всегда больше общего.
-    </div>
-    <div class="input-grid">
-      <div class="input-group">
-        <label>Общий счётчик</label>
-        <input type="number" id="general-counter" step="1" min="0" placeholder="22000" oninput="checkCounterDiff()">
-        <div class="unit">порции</div>
-      </div>
-      <div class="input-group">
-        <label>Инженерный счётчик</label>
-        <input type="number" id="engineer-counter" step="1" min="0" placeholder="46000" oninput="checkCounterDiff()">
-        <div class="unit">технический</div>
-      </div>
-    </div>
-    <div id="counter-diff-warn" style="display:none;margin-top:8px;padding:10px 14px;background:rgba(255,107,107,.15);border:1px solid var(--danger);border-radius:10px;font-size:13px;color:var(--danger);font-weight:600"></div>
-
-    <div class="section-title">Бонус/прочее (примечание)</div>
-    <textarea class="input-textarea" id="visit-note" placeholder="Замечания, пожелания клиента..."></textarea>
+    <div class="section-title">Пожелание</div>
+    <textarea class="input-textarea" id="visit-note" placeholder="Замечания по информации, важные примечания к визиту"></textarea>
 
     <button class="btn-submit" id="btn-submit" onclick="submitVisit()">
       <div class="spinner" id="submit-spinner"></div>
@@ -344,9 +361,7 @@ body{font-family:var(--font-body);background:var(--bg);color:var(--text);min-hei
       <label style="display:flex;align-items:center;gap:10px;padding:12px 14px;background:var(--card);border:1px solid var(--border);border-radius:var(--radius);cursor:pointer">
         <input type="radio" name="chg-type" value="аппарат" onchange="onChangeType('аппарат')"> <span style="font-size:14px">Смена / добавление аппарата</span>
       </label>
-      <label style="display:flex;align-items:center;gap:10px;padding:12px 14px;background:var(--card);border:1px solid var(--border);border-radius:var(--radius);cursor:pointer">
-        <input type="radio" name="chg-type" value="контакт" onchange="onChangeType('контакт')"> <span style="font-size:14px">Контакт / примечание</span>
-      </label>
+
       <label style="display:flex;align-items:center;gap:10px;padding:12px 14px;background:var(--card);border:1px solid rgba(255,107,107,.4);border-radius:var(--radius);cursor:pointer">
         <input type="radio" name="chg-type" value="деактивация" onchange="onChangeType('деактивация')">
         <span style="font-size:14px;color:var(--danger)">⛔ Снятие торговой точки (деактивация)</span>
@@ -367,7 +382,7 @@ body{font-family:var(--font-body);background:var(--bg);color:var(--text);min-hei
         <div class="input-group"><label>Статус старого</label><input type="text" id="chg-old-status" value="снята"></div>
         <div class="input-group full"><label>Модель нового аппарата</label><input type="text" id="chg-new-model" placeholder="Gaggia BT 371"></div>
         <div class="input-group"><label>Серийный №</label><input type="text" id="chg-new-serial" placeholder="SN-0000"></div>
-        <div class="input-group"><label>Коеф. расхода кофе</label><input type="number" id="chg-new-koef" step="0.001" placeholder="0.01"></div>
+        <div class="input-group"><label>Коеф. расхода кофе</label><input inputmode="decimal" type="number" id="chg-new-koef" step="0.001" placeholder="0.01"></div>
       </div>
     </div>
     <div id="chg-contact-fields" style="display:none">
@@ -412,18 +427,7 @@ body{font-family:var(--font-body);background:var(--bg);color:var(--text);min-hei
           <option>четверг</option><option>пятница</option><option>суббота</option>
         </select>
       </div>
-      <div class="input-group">
-        <label>Отсрочка (дней)</label>
-        <input type="number" id="nc-otsr" placeholder="7">
-      </div>
-      <div class="input-group full">
-        <label>Бонус / Условия</label>
-        <input type="text" id="nc-bonus" placeholder="10+1, стакан 175мл">
-      </div>
-      <div class="input-group full">
-        <label>Сервис клиента</label>
-        <input type="text" id="nc-service" placeholder="ТО каждые 3 мес.">
-      </div>
+
     </div>
 
     <!-- АППАРАТ -->
@@ -434,12 +438,6 @@ body{font-family:var(--font-body);background:var(--bg);color:var(--text);min-hei
         <div style="position:relative">
           <select id="nc-model-select" onchange="onModelSelect()" style="width:100%;background:none;border:none;outline:none;color:var(--text);font-family:var(--font-body);font-size:15px;font-weight:600;padding:0">
             <option value="">— выбрать или ввести —</option>
-            <option>Alegria BT 290</option>
-            <option>Gaggia BT 371</option>
-            <option>DeLonghi EC685</option>
-            <option>Saeco Aulika</option>
-            <option>Jura E6</option>
-            <option>Franke A200</option>
             <option>другая...</option>
           </select>
         </div>
@@ -450,34 +448,18 @@ body{font-family:var(--font-body);background:var(--bg);color:var(--text);min-hei
       </div>
       <div class="input-group full">
         <label>Серийный номер (он же ID аппарата)</label>
-        <input type="text" id="nc-serial" placeholder="SN-0000" oninput="document.getElementById('nc-machine-id').value=this.value">
+        <input type="text" id="nc-serial" placeholder="UG 123" oninput="document.getElementById('nc-machine-id').value=this.value">
         <input type="hidden" id="nc-machine-id">
       </div>
       <div class="input-group">
         <label>Коеф. расхода кофе</label>
-        <input type="number" id="nc-koef" step="0.001" value="0.01">
+        <input inputmode="decimal" type="number" id="nc-koef" step="0.001" value="0.01">
       </div>
       <div class="input-group full">
         <label>Доп. инвентарь (к этому аппарату)</label>
         <input type="text" id="nc-extra" placeholder="стенд, органайзер, стабилизатор">
       </div>
-      <div class="input-group full">
-        <label>Сервис аппарата</label>
-        <input type="text" id="nc-eq-service" placeholder="ТО каждые 2000 порций">
-      </div>
-    </div>
 
-    <!-- ПРАЙС -->
-    <div class="section-title">Прайс (грн/кг)</div>
-    <div class="input-grid">
-      <div class="input-group"><label>Classic</label><input type="number" id="nc-p-classic" step="1" placeholder="1000"></div>
-      <div class="input-group"><label>Rosso</label><input type="number" id="nc-p-rosso" step="1" placeholder="600"></div>
-      <div class="input-group"><label>Blu</label><input type="number" id="nc-p-blu" step="1" placeholder="600"></div>
-      <div class="input-group"><label>Arabica</label><input type="number" id="nc-p-arabica" step="1" placeholder="700"></div>
-      <div class="input-group"><label>Топинг</label><input type="number" id="nc-p-toping" step="1" placeholder="500"></div>
-      <div class="input-group"><label>Ирл.виски</label><input type="number" id="nc-p-viski" step="1" placeholder="550"></div>
-      <div class="input-group"><label>Исп.крем</label><input type="number" id="nc-p-krem" step="1" placeholder=""></div>
-      <div class="input-group"><label>Шоколад</label><input type="number" id="nc-p-shok" step="1" placeholder="550"></div>
     </div>
 
     <!-- НАПИТКИ И НОРМЫ -->
@@ -495,12 +477,12 @@ body{font-family:var(--font-body);background:var(--bg);color:var(--text);min-hei
     <div class="input-grid">
       <div class="input-group">
         <label>Инженерный счётчик</label>
-        <input type="number" id="nc-eng-counter" step="1" min="0" placeholder="45000">
+        <input inputmode="numeric" type="number" id="nc-eng-counter" step="1" min="0" placeholder="45000">
         <div class="unit">начальное показание</div>
       </div>
       <div class="input-group">
         <label>Общий счётчик</label>
-        <input type="number" id="nc-gen-counter" step="1" min="0" placeholder="22000">
+        <input inputmode="numeric" type="number" id="nc-gen-counter" step="1" min="0" placeholder="22000">
         <div class="unit">начальное показание</div>
       </div>
     </div>
@@ -519,7 +501,32 @@ body{font-family:var(--font-body);background:var(--bg);color:var(--text);min-hei
 <div class="toast" id="toast"></div>
 
 <script>
-const APP_VERSION = '2.1';
+const APP_VERSION = '3.3';
+
+// ══ ПОЛЬЗОВАТЕЛИ И ПРАВА ══════════════════════════════════════════════════
+// Роли: 'admin' = полный доступ | 'agent' = только свои клиенты | 'tech' = без цен и завоза
+const USERS = {
+  // Супервайзер / Бухгалтеры — полный доступ
+  'Долженко':   { pass: 'admin123',  role: 'admin', label: 'Долженко Эдуард',    tp: null },
+  'Коева':      { pass: 'admin456',  role: 'admin', label: 'Коева Александра',    tp: null },
+  'Ковальская': { pass: 'admin789',  role: 'admin', label: 'Ковальская Яна',      tp: null },
+  // Торговые агенты — только свои клиенты
+  'Добрев':     { pass: 'dobrev1',   role: 'agent', label: 'Добрев Руслан',       tp: 'Добрев'  },
+  'Житнюк':    { pass: 'zhitnuk1',  role: 'agent', label: 'Житнюк Валентин',     tp: 'Житнюк'  },
+  'Бойко':      { pass: 'boiko1',    role: 'agent', label: 'Бойко Иван',          tp: 'Бойко'   },
+  'Яковлев':    { pass: 'yakovlev1', role: 'agent', label: 'Яковлев Саша',        tp: 'Яковлев' },
+  // Техники — все клиенты, без цен и завоза
+  'Кухарь':     { pass: 'kuhar1',    role: 'tech',  label: 'Кухарь Сергей',       tp: null },
+  'Зинчук':     { pass: 'zinchuk1',  role: 'tech',  label: 'Зинчук Станислав',    tp: null },
+};
+
+// Текущий пользователь
+let CURRENT_USER = null; // { key, pass, role, label, tp }
+
+function getUserRole() { return CURRENT_USER ? CURRENT_USER.role : 'agent'; }
+function isAdmin()     { return getUserRole() === 'admin'; }
+function isTech()      { return getUserRole() === 'tech'; }
+function isAgent()     { return getUserRole() === 'agent'; }
 // ══ CONFIG ════════════════════════════════════════════════════════════════
 let CFG = { name: '', scriptUrl: '' };
 
@@ -527,41 +534,77 @@ function loadConfig() {
   const s = localStorage.getItem('crm_cfg');
   if (s) {
     CFG = JSON.parse(s);
-    document.getElementById('cfg-name').value = CFG.name || '';
-    document.getElementById('cfg-script-url').value = CFG.scriptUrl || '';
+    if (CFG.userKey && USERS[CFG.userKey]) {
+      CURRENT_USER = { key: CFG.userKey, ...USERS[CFG.userKey] };
+    }
+    const urlInp = document.getElementById('cfg-script-url');
+    if (urlInp && CFG.scriptUrl) {
+      urlInp.value = CFG.scriptUrl;
+      const urlField = document.getElementById('cfg-url-field');
+      if (urlField) urlField.style.display = 'none';
+    }
     if (CFG.name && CFG.scriptUrl) { startApp(); return true; }
   }
   return false;
 }
 function saveConfig() {
-  const name = document.getElementById('cfg-name').value.trim();
-  const url  = document.getElementById('cfg-script-url').value.trim();
+  const userKey = document.getElementById('cfg-name').value.trim();
+  const password = document.getElementById('cfg-password').value;
   const errEl = document.getElementById('cfg-error');
 
-  if (!name) {
-    errEl.textContent = 'Выберите имя из списка';
+  if (!userKey) {
+    errEl.textContent = 'Выберите пользователя из списка';
+    errEl.style.display = 'block'; return;
+  }
+  if (!password) {
+    errEl.textContent = 'Введите пароль';
+    errEl.style.display = 'block'; return;
+  }
+
+  const user = USERS[userKey];
+  if (!user || user.pass !== password) {
+    errEl.textContent = '❌ Неверный пароль';
     errEl.style.display = 'block';
+    document.getElementById('cfg-password').value = '';
     return;
+  }
+
+  // Пароль верный — берём URL из поля или localStorage
+  let url = document.getElementById('cfg-script-url').value.trim();
+  if (!url) {
+    const saved_cfg = localStorage.getItem('crm_cfg');
+    if (saved_cfg) url = (JSON.parse(saved_cfg).scriptUrl || '');
   }
   if (!url) {
     errEl.textContent = 'Введите URL Apps Script';
-    errEl.style.display = 'block';
-    return;
+    errEl.style.display = 'block'; return;
   }
-  if (!url.startsWith('https://')) {
-    errEl.textContent = 'URL должен начинаться с https://';
-    errEl.style.display = 'block';
-    return;
-  }
+
   errEl.style.display = 'none';
-  CFG = { name, scriptUrl: url, version: APP_VERSION };
+  CURRENT_USER = { key: userKey, ...user };
+  CFG = {
+    name: user.tp || userKey,  // для торговых = имя ТП, для остальных = key
+    userKey,
+    role: user.role,
+    label: user.label,
+    scriptUrl: url,
+    version: APP_VERSION
+  };
   localStorage.setItem('crm_cfg', JSON.stringify(CFG));
-  const saved = document.getElementById('cfg-saved');
-  saved.textContent = '✓ Сохранено, загружаем...';
-  saved.style.display = 'block';
+  document.getElementById('cfg-saved').style.display = 'block';
   setTimeout(startApp, 400);
 }
 function openConfig() {
+  const urlInp = document.getElementById('cfg-script-url');
+  const urlField = document.getElementById('cfg-url-field');
+  if (urlInp && CFG.scriptUrl) {
+    urlInp.value = CFG.scriptUrl;
+    if (urlField) urlField.style.display = 'block';
+  }
+  const nameEl = document.getElementById('cfg-name');
+  if (nameEl && CFG.userKey) nameEl.value = CFG.userKey;
+  document.getElementById('cfg-password').value = '';
+  document.getElementById('cfg-error').style.display = 'none';
   document.getElementById('config-overlay').style.display = 'flex';
   document.getElementById('app').style.display = 'none';
 }
@@ -575,13 +618,29 @@ let visitsData    = [];
 function fmtDate(val) {
   if (!val) return '';
   if (typeof val === 'string') {
+    // DD.MM.YYYY — уже готово
     if (/^\d{2}\.\d{2}\.\d{4}$/.test(val)) return val;
-    const m = val.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    // ISO с временем (2026-05-19T21:00:00.000Z) — парсим через Date,
+    // берём локальную дату GMT+3, иначе 21:00 UTC = 19-е, а нужно 20-е
+    if (val.includes('T')) {
+      const d = new Date(val);
+      if (!isNaN(d)) {
+        return String(d.getDate()).padStart(2,'0') + '.' +
+               String(d.getMonth()+1).padStart(2,'0') + '.' +
+               d.getFullYear();
+      }
+    }
+    // YYYY-MM-DD без времени — берём напрямую без парсинга (нет сдвига)
+    const m = val.match(/^(\d{4})-(\d{2})-(\d{2})$/);
     if (m) return `${m[3]}.${m[2]}.${m[1]}`;
   }
   if (val instanceof Date || typeof val === 'number') {
     const d = new Date(val);
-    if (!isNaN(d)) return `${String(d.getDate()).padStart(2,'0')}.${String(d.getMonth()+1).padStart(2,'0')}.${d.getFullYear()}`;
+    if (!isNaN(d)) {
+      return String(d.getDate()).padStart(2,'0') + '.' +
+             String(d.getMonth()+1).padStart(2,'0') + '.' +
+             d.getFullYear();
+    }
   }
   return String(val).split('T')[0];
 }
@@ -611,20 +670,71 @@ async function safeGet(sheet, months) {
   try { return await scriptGet(sheet, months); }
   catch(e) { console.warn('safeGet:', sheet, e.message); return []; }
 }
-async function scriptPost(payload) {
-  const r = await fetch(CFG.scriptUrl, { method:'POST', headers:{'Content-Type':'text/plain'}, body:JSON.stringify(payload) });
-  if (!r.ok) throw new Error(`Ошибка сети: ${r.status}`);
-  const d = await r.json();
-  if (d.status === 'error') throw new Error(d.message);
-  return d;
+async function scriptPost(payload, retries=2, timeoutMs=25000) {
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), timeoutMs); // таймаут передаётся снаружи
+      const r = await fetch(CFG.scriptUrl, {
+        method: 'POST',
+        headers: {'Content-Type':'text/plain'},
+        body: JSON.stringify(payload),
+        signal: controller.signal
+      });
+      clearTimeout(timeout);
+      if (!r.ok) throw new Error(`Ошибка сети: ${r.status}`);
+      const d = await r.json();
+      if (d.status === 'error') throw new Error(d.message);
+      return d;
+    } catch(e) {
+      if (attempt < retries) {
+        await new Promise(res => setTimeout(res, 1500));
+        continue;
+      }
+      throw e;
+    }
+  }
 }
 
 // ══ INIT ═══════════════════════════════════════════════════════════════════
+function applyRoleRestrictions() {
+  // Техник: убрать вкладки Изменения и Клиент, скрыть заявку и прайс
+  if (isTech()) {
+    // Скрыть вкладки Изменения и Клиент
+    document.querySelectorAll('.nav-tab').forEach(el => {
+      const txt = el.textContent.trim();
+      if (txt === 'ИЗМЕНЕНИЯ' || txt === 'КЛИЕНТ') el.style.display = 'none';
+    });
+    // Скрыть секцию Заявка в визите
+    const zaySections = document.querySelectorAll('.section-title');
+    zaySections.forEach(el => {
+      if (el.textContent.includes('Заявка') || el.textContent.includes('Прайс')) {
+        let next = el.nextElementSibling;
+        el.style.display = 'none';
+        while (next && !next.classList.contains('section-title')) {
+          next.style.display = 'none';
+          next = next.nextElementSibling;
+        }
+      }
+    });
+  }
+  // Агент: убрать вкладку Клиент (добавление нового клиента)
+  if (isAgent()) {
+    document.querySelectorAll('.nav-tab').forEach(el => {
+      if (el.textContent.trim() === 'КЛИЕНТ') el.style.display = 'none';
+    });
+  }
+}
+
 async function startApp() {
   try {
     document.getElementById('config-overlay').style.display = 'none';
     document.getElementById('app').style.display = 'flex';
-    document.getElementById('topbar-name').textContent = CFG.name;
+    // Показать имя и роль в топбаре
+    const roleLabel = {'admin':'👑','agent':'','tech':'🔧'}[getUserRole()] || '';
+    document.getElementById('topbar-name').textContent = (CFG.label || CFG.name) + ' ' + roleLabel;
+    // Техник: скрыть вкладку Изменения и блоки с ценами/завозом
+    applyRoleRestrictions();
     setDefaultDate();
     await fetchAllData();
   } catch(e) {
@@ -663,7 +773,8 @@ async function fetchAllData() {
       .filter(r => r[0]
         && !['ОСНОВНЫЕ ДАННЫЕ','Название ТТ','CRM — Клиенты'].includes(String(r[0]))
         && String(r[10]||'').toLowerCase() === 'да'
-        && String(r[12]||'').trim() === CFG.name
+        // Агент видит только своих; Админ и Техник — всех
+        && (isAdmin() || isTech() || String(r[12]||'').trim() === (CURRENT_USER.tp || CFG.name))
       )
       .map(r => ({
         name:         String(r[0]  || ''),
@@ -678,10 +789,10 @@ async function fetchAllData() {
         active:       String(r[10] || ''),
         day:          String(r[11] || ''),
         tp:           String(r[12] || ''),
-        priceClassic: r[13]||'', priceRosso:   r[14]||'',
-        priceBlu:     r[15]||'', priceArabica: r[16]||'',
-        priceToping:  r[17]||'', priceViski:   r[18]||'',
-        priceKrem:    r[19]||'', priceShok:    r[20]||'',
+        priceRosso:   r[13]||'', priceBlu:     r[14]||'',
+        priceOro:     r[15]||'', priceArabica: r[16]||'',
+        priceClassic: r[17]||'', priceMol:     r[18]||'',
+        priceViski:   r[19]||'', priceShok:    r[20]||'', priceKrem: r[21]||'',
         equip: '', koef: ''
       }));
     console.log('Клиентов загружено:', clientsData.length);
@@ -712,10 +823,13 @@ async function fetchAllData() {
       if (!drinksData[cl].find(d => d._key === key)) {
         drinksData[cl].push({
           _key: key, name, serial, size,
-          mol:   r[6] != null ? r[6] : null,
-          vis:   r[7] != null ? r[7] : null,
-          shok:  r[8] != null ? r[8] : null,
-          moroz: r[9] != null ? r[9] : null,
+          kofe:  r[6] != null && r[6] !== '' ? parseFloat(r[6]) : null,
+          mol:   r[7] != null && r[7] !== '' ? r[7] : null,
+          vis:   r[8] != null && r[8] !== '' ? r[8] : null,
+          shok:  r[9] != null && r[9] !== '' ? r[9] : null,
+          moroz: r[10] != null && r[10] !== '' ? r[10] : null,
+          type:  r[11] != null ? String(r[11]).trim() : '',
+          order: r[14] != null && r[14] !== '' ? parseFloat(r[14]) : 9999,
         });
       }
     });
@@ -725,6 +839,22 @@ async function fetchAllData() {
     setStatus('Загружаем справочник напитков...'); const napRaw = await safeGet('Справ.нап.');
     window._drinkOptions = napRaw.slice(1).filter(r => r[0])
       .map(r => ({ name: String(r[0]).trim(), size: r[1] || '' }));
+
+    // ── Модели аппаратов из Справ.нап. col E (E2:E38) ────────────────────
+    // Берём col E (индекс 4), фильтруем пустые и дубли
+    const modelSel = document.getElementById('nc-model-select');
+    if (modelSel) {
+      const models = [...new Set(
+        napRaw.slice(1).map(r => String(r[4]||'').trim()).filter(Boolean)
+      )];
+      // Вставляем перед последней опцией "другая..."
+      const otherOpt = modelSel.querySelector('option[value="другая..."], option:last-child');
+      models.forEach(m => {
+        const opt = document.createElement('option');
+        opt.value = m; opt.textContent = m;
+        modelSel.insertBefore(opt, otherOpt);
+      });
+    }
 
     // ── Визиты ───────────────────────────────────────────────────────────
     // 0=НазвТТ, 1=Дата, 2=ТП, 3=ОстКоф, 4=ОстМол, 5=ОстВис,
@@ -769,7 +899,7 @@ async function fetchAllData() {
     // 0=НазвТТ, 1=Серийный№, 2=Дата, 3=Напиток, 4=Счётчик, 5=Продано
     setStatus('Загружаем счётчики...'); const scRaw = await scriptGet('Счетчики расхода');
     // Счётчики расхода: row1=заголовок, data с row2
-    // 0=НазвТТ, 1=Серийный№, 2=Дата, 3=Напиток, 4=Счётчик, 5=Продано
+    // 0=НазвТТ, 1=Серийный№, 2=Дата, 3=Напиток, 4=Стакан(мл), 5=Счётчик, 6=Продано
     window._allCounters = scRaw.slice(1).filter(r => r[0] && r[3]).map(r => {
       const rr = [...r];
       rr[2] = fmtDate(rr[2]);
@@ -800,12 +930,58 @@ async function fetchAllData() {
   }
 }
 
+
+// ── Проверка остатков (подсветка если значение неожиданное) ──────────────
+function checkOstatok(id, autoVal, label) {
+  const inp = document.getElementById(id);
+  if (!inp) return;
+  const val = parseFloat(inp.value);
+  if (isNaN(val)) return;
+  // Подсвечиваем красным если остаток больше нормы (вероятная ошибка ввода)
+  if (autoVal != null && val > autoVal * 2 && val > 1) {
+    inp.style.borderColor = 'var(--danger)';
+  } else {
+    inp.style.borderColor = '';
+  }
+}
+
+// ── Проверка разницы счётчиков ────────────────────────────────────────────
+function checkCounterDiff() {
+  const gen = parseFloat(document.getElementById('general-counter')?.value);
+  const eng = parseFloat(document.getElementById('engineer-counter')?.value);
+  const warn = document.getElementById('counter-diff-warn');
+  if (!warn) return;
+  if (!isNaN(gen) && !isNaN(eng)) {
+    if (eng > gen) {
+      // Промежуточный > Общий — это ошибка
+      warn.style.display = 'block';
+      warn.style.background = 'rgba(255,107,107,.15)';
+      warn.style.borderColor = 'var(--danger)';
+      warn.style.color = 'var(--danger)';
+      warn.textContent = '⚠ Промежуточный счётчик больше Общего — проверьте данные!';
+    } else {
+      warn.style.display = 'none';
+    }
+  } else {
+    warn.style.display = 'none';
+  }
+}
+
 function populateSelects() {
-  const names = clientsData.map(c => c.name);
-  ['visit-client','dash-client','chg-client'].forEach(id => {
+  // Учитываем текущий выбранный день — не сбрасываем фильтр после обновления данных
+  const visitDay = document.getElementById('visit-day-filter')?.value || '';
+  const dashDay  = document.getElementById('dash-day-filter')?.value  || '';
+
+  const filtered = (day) => day
+    ? clientsData.filter(c => String(c.day||'').toLowerCase() === day)
+    : clientsData;
+
+  [['visit-client', visitDay], ['dash-client', dashDay], ['chg-client', visitDay]].forEach(([id, day]) => {
     const sel = document.getElementById(id); if (!sel) return;
     const cur = sel.value;
-    sel.innerHTML = `<option value="">— выберите клиента —</option>` + names.map(n=>`<option${n===cur?' selected':''}>${n}</option>`).join('');
+    const list = filtered(day);
+    sel.innerHTML = `<option value="">— выберите клиента —</option>` +
+      list.map(c => `<option${c.name===cur?' selected':''}>${c.name}</option>`).join('');
   });
 }
 
@@ -843,16 +1019,17 @@ function onClientChange() {
   document.getElementById('cc-bonus').textContent   = cl.bonus   || '—';
   const noteEl = document.getElementById('cc-note');
   if (noteEl) noteEl.textContent = cl.note || '—';
-  document.getElementById('cc-koef').textContent    = cl.koef    || '—';
+  document.getElementById('cc-koef').textContent    = cl.koef    || '—';  // обновляется при смене аппарата
   document.getElementById('cc-extra').textContent   = cl.extra   || '—';
   document.getElementById('cc-service').textContent = cl.service || '—';
 
   // Прайс — только непустые позиции
   const priceItems = [
-    ['Classic', cl.priceClassic, 'кг'], ['Rosso', cl.priceRosso, 'кг'],
-    ['Blu', cl.priceBlu, 'кг'], ['Arabica', cl.priceArabica, 'кг'],
-    ['Топинг', cl.priceToping, 'кг'], ['Виски', cl.priceViski, 'кг'],
-    ['Исп.крем', cl.priceKrem, 'кг'], ['Шоколад', cl.priceShok, 'кг']
+    ['Rosso', cl.priceRosso, 'кг'], ['Blu', cl.priceBlu, 'кг'],
+    ['Oro', cl.priceOro, 'кг'], ['Arabica', cl.priceArabica, 'кг'],
+    ['Classic', cl.priceClassic, 'кг'], ['Молоко', cl.priceMol, 'кг'],
+    ['Виски', cl.priceViski, 'кг'], ['Шоколад', cl.priceShok, 'кг'],
+    ['Исп.крем', cl.priceKrem, 'кг']
   ].filter(p => p[1]);
   document.getElementById('cc-prices-wrap').innerHTML = priceItems.length
     ? `<table class="prices-table"><tr>${priceItems.map(p=>`<th>${p[0]}</th>`).join('')}</tr><tr>${priceItems.map(p=>`<td>${p[1]}</td>`).join('')}</tr></table>`
@@ -886,11 +1063,64 @@ function onMachineChange() {
   if (svcEl) svcEl.textContent = svcText;
   if (svcRow) svcRow.style.display = 'flex';
 
+  // Placeholder счётчиков = последние значения по аппарату
+  // Последний визит по выбранному аппарату
+  // Коэф. кофе — из выбранного аппарата
+  const _koefEl = document.getElementById('cc-koef');
+  if (_koefEl && machId) {
+    const _eqList = (equipmentData[name] || []);
+    const _selEq = _eqList.find(e => String(e.id||'').trim() === machId);
+    _koefEl.textContent = _selEq ? (_selEq.koef || '—') : (cl?.koef || '—');
+  }
+
+  const _lvRow = document.getElementById('cc-last-visit-row');
+  const _lvVal = document.getElementById('cc-last-visit');
+  if (_lvRow && _lvVal && machId) {
+    const _lv = visitsData.filter(v =>
+      String(v[0]).trim() === name
+    ).sort((a,b) => (b[1]>a[1]?1:-1))[0];
+    if (_lv) {
+      _lvRow.style.display = '';
+      _lvVal.textContent = fmtDate(_lv[1]);
+    } else {
+      _lvRow.style.display = 'none';
+    }
+  }
+
+  const _gi = document.getElementById('general-counter');
+  const _ei = document.getElementById('engineer-counter');
+  if (_gi && machId) {
+    const _gc = (window._allGenCounters||[])
+      .filter(r => String(r[0]).trim()===name && String(r[1]).trim()===machId)
+      .sort((a,b)=>(b[2]>a[2]?1:-1));
+    if (_gc.length) {
+      const _l = _gc[0];
+      _gi.placeholder = (_l[3]!=null&&_l[3]!=='') ? 'прошлый: '+_l[3] : 'Общий';
+      _ei.placeholder = (_l[4]!=null&&_l[4]!=='') ? 'прошлый: '+_l[4] : 'Промежуточный';
+      const _dw = document.getElementById('counter-diff-warn');
+      if (_dw && _l[3]!=null && _l[3]!=='') {
+        _dw.style.display='block';
+        _dw.style.background='rgba(255,160,50,.08)';
+        _dw.style.borderColor='var(--accent)';
+        _dw.style.color='var(--accent)';
+        _dw.textContent='Последние показатели '+_l[2]+': Общий='+_l[3]+', Промеж.='+(_l[4]||'—');
+      }
+    } else {
+      _gi.placeholder='25000';
+      _ei.placeholder='100';
+    }
+  }
+
   // Нормативы с расходом — только у которых есть объём стакана
   // Показываем ВСЕ напитки у которых есть размер стакана
   const allDrinks = (drinksData[name] || []).filter(d => {
-    if (machId && d.serial && d.serial !== machId) return false;
+    if (machId && d.serial && d.serial.toLowerCase() !== machId.toLowerCase()) return false;
     return d.size && String(d.size).trim() !== '';
+  }).sort((a, b) => {
+    const oa = a.order !== 9999 ? a.order : 99999;
+    const ob = b.order !== 9999 ? b.order : 99999;
+    if (oa !== ob) return oa - ob;
+    return (parseInt(a.size)||0) - (parseInt(b.size)||0);
   });
 
   // Скрывать остатки/заявку для позиций без нормы
@@ -912,17 +1142,16 @@ function onMachineChange() {
       <div style="flex:1">
         <div class="drink-name">${d.name}</div>
         <div style="display:flex;gap:4px;margin-top:4px;flex-wrap:wrap">
-          ${d.mol   ? `<span class="badge" style="font-size:10px">мол ${d.mol} кг</span>`   : ''}
-          ${d.vis   ? `<span class="badge" style="font-size:10px">виски ${d.vis} кг</span>` : ''}
-          ${d.shok  ? `<span class="badge" style="font-size:10px">шок ${d.shok} кг</span>`  : ''}
-          ${d.moroz ? `<span class="badge" style="font-size:10px">мор ${d.moroz} кг</span>` : ''}
+          ${d.kofe  ? `<span class="badge" style="font-size:10px;color:var(--accent)">☕ ${d.kofe}</span>` : ''}
+          ${d.mol   ? `<span class="badge" style="font-size:10px">мол ${d.mol}</span>`   : ''}
+          ${d.vis   ? `<span class="badge" style="font-size:10px">виски ${d.vis}</span>` : ''}
+          ${d.shok  ? `<span class="badge" style="font-size:10px">шок ${d.shok}</span>`  : ''}
+          ${d.moroz ? `<span class="badge" style="font-size:10px">мор ${d.moroz}</span>` : ''}
         </div>
       </div>
       <div class="drink-size">${d.size} мл</div>
       <div class="drink-counter">
-        <button class="drink-btn" onclick="adjDrink(${i},-1)">−</button>
-        <input type="number" id="drink-${i}" value="0" min="0" step="1">
-        <button class="drink-btn" onclick="adjDrink(${i},1)">+</button>
+        <input inputmode="numeric" type="number" id="drink-${i}" placeholder="" min="0" step="1" style="width:90px;text-align:center">
       </div>
     </div>`).join('');
   window._filteredDrinks = allDrinks;
@@ -937,6 +1166,7 @@ async function submitVisit() {
   const client = document.getElementById('visit-client').value;
   if (!client) { showToast('Выберите клиента', true); return; }
   const machine = document.getElementById('visit-machine').value || '';
+
   const btn = document.getElementById('btn-submit');
   const sp  = document.getElementById('submit-spinner');
   const lb  = document.getElementById('submit-label');
@@ -944,8 +1174,14 @@ async function submitVisit() {
   try {
     const di = document.getElementById('visit-date').value;
     let ds;
-    if (di) { const [y,m,d]=di.split('-'); ds=`${d}.${m}.${y}`; }
-    else { const n=new Date(); ds=`${String(n.getDate()).padStart(2,'0')}.${String(n.getMonth()+1).padStart(2,'0')}.${n.getFullYear()}`; }
+    // Передаём дату в формате DD.MM.YYYY — Apps Script parseDate делает локальную дату (без UTC сдвига)
+    if (di) {
+      const [y,m,d] = di.split('-');
+      ds = `${d}.${m}.${y}`;  // DD.MM.YYYY
+    } else {
+      const n = new Date();
+      ds = `${String(n.getDate()).padStart(2,'0')}.${String(n.getMonth()+1).padStart(2,'0')}.${n.getFullYear()}`;
+    }
 
     // Визиты: A=НазвТТ,B=Дата,C=ТП,
     //  D=ОстКоф,E=ОстМол,F=ОстВис,G=ОстШок,H=ОстМор,
@@ -956,52 +1192,57 @@ async function submitVisit() {
     const row = [
       client,            // A НазвТТ
       ds,                // B Дата
-      CFG.name,          // C Торг.представитель
-      v('ost-kofe'),     // D Ост.кофе
-      v('ost-mol'),      // E Ост.молоко
-      v('ost-vis'),      // F Ост.виски
-      v('ost-shok'),     // G Ост.шоколад
-      v('ost-moroz'),    // H Ост.мороженое
-      '','','','','',    // I-M Норма ост. (формулы в таблице)
-      v('zay-kofe'),     // N Заявка кофе
-      v('zay-mol'),      // O Заявка молоко
-      v('zay-vis'),      // P Заявка виски
-      v('zay-shok'),     // Q Заявка шоколад
-      v('zay-moroz'),    // R Заявка мороженое
-      visitNote          // S Примечание
+      (clientsData.find(c=>c.name===client)?.tp || CFG.name),  // C Торг.представитель (из справочника)
+      visitNote,         // D(3) Примечание
+      v('ost-kofe'),     // E(4) Ост.кофе
+      v('ost-mol'),      // F(5) Ост.молоко
+      v('ost-vis'),      // G(6) Ост.виски
+      v('ost-shok'),     // H(7) Ост.шоколад
+      v('ost-moroz'),    // I(8) Ост.мороженое
+      v('zay-kofe'),     // J(9) Заявка кофе
+      v('zay-mol'),      // K(10) Заявка молоко
+      v('zay-vis'),      // L(11) Заявка виски
+      v('zay-shok'),     // M(12) Заявка шоколад
+      v('zay-moroz'),    // N(13) Заявка мороженое
     ];
-    await scriptPost({ action:'addVisit', row });
-
-    // Счётчики расхода: НазвТТ, Серийный, Дата, Напиток, Счётчик
-    // Общий и инженерный НЕ сюда — они в Общие счётчики
+    // Собираем все запросы и отправляем параллельно
     const serial = document.getElementById('visit-machine').value || '';
     const drinks = window._filteredDrinks || [];
+    const promises = [];
+
+    // 1. Визит — только если есть остатки или заявка
+    const _hasOst = [4,5,6,7,8].some(i => row[i] !== '' && row[i] !== null && parseFloat(row[i]) > 0);
+    const _hasZay = [9,10,11,12,13].some(i => row[i] !== '' && row[i] !== null && parseFloat(row[i]) > 0);
+    if (_hasOst || _hasZay) {
+      promises.push(scriptPost({ action:'addVisit', row }));
+    }
+
+    // 2. Счётчики расхода по напиткам
     const cRows = [];
     drinks.forEach((d,i) => {
-      const val = parseInt(document.getElementById('drink-'+i)?.value||0);
-      // Счётчики: A=НазвТТ, B=Серийный, C=Дата, D=Напиток, E=Тип(формула), F=Счётчик
-      if (val > 0) cRows.push([client, serial, ds, d.name.trim(), '', val]);
+      const val = parseInt(document.getElementById('drink-'+i)?.value||'0') || 0;
+      if (val > 0) cRows.push([client, serial, ds, d.name.trim(), parseInt(d.size)||0, val]);
     });
-    if (cRows.length) await scriptPost({ action:'addCounters', rows:cRows });
+    if (cRows.length) promises.push(scriptPost({ action:'addCounters', rows:cRows }, 1, 45000));
 
-    // Общие счётчики: НазвТТ, Серийный, Дата, Инж.счётчик, Общий счётчик
+    // 3. Общие счётчики
     const gen = v('general-counter');
     const eng = v('engineer-counter');
     if (gen || eng) {
-      await scriptPost({ action:'addGenCounters', row:[client, serial, ds, eng||'', gen||''] });
+      promises.push(scriptPost({ action:'addGenCounters', row:[client, serial, ds, gen||'', eng||''] }));
     }
 
+    // Отправляем всё одновременно
+    await Promise.all(promises);
     showToast('✓ Визит сохранён!');
-    // Запоминаем выбранного клиента и машину
+    // Запоминаем клиента и машину — НЕ перезагружаем все данные (долго)
     const savedClient  = document.getElementById('visit-client').value;
     const savedMachine = document.getElementById('visit-machine').value;
     resetForm();
-    await fetchAllData();
-    // Восстанавливаем клиента и машину после перезагрузки
+    // Восстанавливаем клиента и машину без полной перезагрузки
     if (savedClient) {
       document.getElementById('visit-client').value = savedClient;
       onClientChange();
-      // Восстановить аппарат
       setTimeout(() => {
         const machSel = document.getElementById('visit-machine');
         if (machSel && savedMachine) machSel.value = savedMachine;
@@ -1040,13 +1281,18 @@ function onDashClientChange() {
   dateSel.innerHTML = '<option value="">— дата визита —</option>';
   if (!name) return;
   // Аппараты
-  (equipmentData[name]||[]).filter(m=>String(m.status||'').toLowerCase()==='активна').forEach(m => {
+  const activeMachs = (equipmentData[name]||[]).filter(m=>String(m.status||'').toLowerCase()==='активна');
+  activeMachs.forEach(m => {
     const opt=document.createElement('option'); opt.value=m.id; opt.textContent=`${m.id} — ${m.model}`; machSel.appendChild(opt);
   });
+  // Автовыбор если один аппарат
+  if (activeMachs.length === 1) {
+    machSel.value = activeMachs[0].id;
+  }
   // Даты визитов — уникальные, отсортированные по убыванию
   // Визиты: col1=Дата
   const dates = [...new Set(
-    visitsData.filter(r => String(r[0]).trim()===name && String(r[18]||'').toLowerCase()!=='доп.загрузка')
+    visitsData.filter(r => String(r[0]).trim()===name && String(r[3]||'').toLowerCase()!=='доп.загрузка')
       .map(r => fmtDate(r[1]))
       .filter(Boolean)
   )].sort((a,b) => b.localeCompare(a)); // сортируем от новых к старым
@@ -1056,25 +1302,22 @@ function onDashClientChange() {
 }
 
 function buildHistoryTable(visits) {
-  // Визиты: 0=НазвТТ,1=Дата,2=ТП,3=ОстКоф,4=ОстМол,5=ОстВис,
-  //         8=ЗаяКоф,9=ЗаяМол,10=ЗаяВис,...,23=Примечание
+  // Визиты: J(9)=ЗаяКоф K(10)=ЗаяМол L(11)=ЗаяВис M(12)=ЗаяШок N(13)=ЗаяМор
   var rows = '';
   visits.forEach(function(r) {
     rows += '<tr>' +
       '<td>' + (fmtDate(r[1])||'') + '</td>' +
-      '<td style="text-align:center;color:var(--accent)">' + (r[3]||'—') + '</td>' +
-      '<td style="text-align:center;color:var(--green)">'  + (r[13]||'—') + '</td>' +
-      '<td style="text-align:center">'                     + (r[4]||'—') + '</td>' +
-      '<td style="text-align:center">'                     + (r[14]||'—') + '</td>' +
-      '<td style="text-align:center;color:var(--purple)">' + (r[5]||'—') + '</td>' +
-      '<td style="font-size:11px;color:var(--muted)">'     + (r[18]||'') + '</td>' +
+      '<td style="text-align:center;color:var(--accent)">'  + (r[9] ||'—') + '</td>' +
+      '<td style="text-align:center;color:var(--green)">'   + (r[10]||'—') + '</td>' +
+      '<td style="text-align:center;color:var(--purple)">'  + (r[11]||'—') + '</td>' +
+      '<td style="text-align:center">'                      + (r[12]||'—') + '</td>' +
+      '<td style="text-align:center">'                      + (r[13]||'—') + '</td>' +
       '</tr>';
   });
-  return '<div style="font-family:var(--font-head);font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin:16px 0 8px">Последние ' + visits.length + ' визита</div>' +
+  return '<div style="font-family:var(--font-head);font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin:16px 0 8px">Последние ' + visits.length + ' визитов</div>' +
     '<div class="info-card" style="overflow-x:auto;padding:0">' +
-    '<table class="visits-table" style="min-width:420px">' +
-    '<tr><th>Дата</th><th>Ост.кофе</th><th>Завоз кофе</th>' +
-    '<th>Ост.мол</th><th>Завоз мол.</th><th>Ост.виски</th><th style="text-align:left">Прим.</th></tr>' +
+    '<table class="visits-table" style="min-width:360px">' +
+    '<tr><th>Дата</th><th>Кофе</th><th>Молоко</th><th>Виски</th><th>Шоколад</th><th>Мороженое</th></tr>' +
     rows + '</table></div>';
 }
 
@@ -1099,20 +1342,20 @@ async function loadDash() {
 
     // Визиты — фильтр, исключаем доп.загрузка (col20)
     let myVisits = visitsData.filter(r =>
-      r[0]===client && (!selMach||r[1]===selMach) &&
-      String(r[20]||'').toLowerCase() !== 'доп.загрузка'
+      r[0]===client &&
+      String(r[3]||'').toLowerCase() !== 'доп.загрузка'
     );
 
     let targetVisit=null, prevVisit=null;
     if (dateInput) {
-      targetVisit = myVisits.find(r => fmtDate(r[2]) === dateInput) || null;
-      prevVisit   = myVisits.find(r => fmtDate(r[2]) < dateInput)   || null;
+      targetVisit = myVisits.find(r => fmtDate(r[1]) === dateInput) || null;
+      prevVisit   = myVisits.find(r => fmtDate(r[1]) < dateInput)   || null;
     } else {
       targetVisit = myVisits[0]||null;
       prevVisit   = myVisits[1]||null;
     }
 
-    // Счётчики: 0=НазвТТ,1=Серийный,2=Дата,3=Напиток,4=Счётчик
+    // Счётчики: 0=НазвТТ,1=Серийный,2=Дата,3=Напиток,4=Стакан,5=Счётчик
     const myCounters = (window._allCounters||[]).filter(r =>
       String(r[0]||'').trim() === client &&
       (!selMach || !r[1] || String(r[1]).trim() === selMach)
@@ -1121,45 +1364,55 @@ async function loadDash() {
     const curDate  = targetVisit ? fmtDate(targetVisit[1]) : null;
     const prevDate = prevVisit   ? fmtDate(prevVisit[1])   : null;
 
-    function getCounter(drink, date) {
+    function getCounterRow(drink, date, size) {
+      // Возвращает всю строку счётчика по напитку+дата+стакан
       if (!date) return null;
       const d = fmtDate(date);
       const dk = String(drink||'').trim().toLowerCase();
-      // Счётчики расхода: 0=НазвТТ,1=Серийный,2=Дата,3=Напиток,4=Счётчик
-      const row = myCounters.find(r =>
+      // Счётчики расхода: 0=НазвТТ,1=Серийный,2=Дата,3=Напиток,4=Стакан,5=Счётчик,6=Продано
+      return myCounters.find(r =>
         String(r[3]||'').trim().toLowerCase() === dk &&
         fmtDate(r[2]) === d &&
-        (!selMach || !r[1] || String(r[1]).trim() === selMach)
-      );
-      // col5 = Счётчик (после вставки Тип в col4)
-      return row != null ? (parseFloat(row[5])||0) : null;
+        (!selMach || !r[1] || String(r[1]).trim() === selMach) &&
+        (!size || !r[4] || String(r[4]).trim() === String(size).trim())
+      ) || null;
+    }
+    function getCounter(drink, date, size) {
+      const row = getCounterRow(drink, date, size);
+      return row ? (parseFloat(row[5])||0) : null;  // col F = Счётчик
+    }
+    function getSold(drink, date, size) {
+      const row = getCounterRow(drink, date, size);
+      return row ? (parseFloat(row[6])||0) : null;  // col G = Продано порций
     }
 
     function getGenCounter(type, date) {
-      // Общие счётчики: 0=НазвТТ,1=Серийный,2=Дата,3=Инж,4=Общий
+      // Общие счётчики: 0=НазвТТ,1=Серийный,2=Дата,3=Общий,4=Промеж
+      // Ищем последнюю запись ДО (включительно) указанной даты
       if (!date) return null;
       const d = fmtDate(date);
-      const row = (window._allGenCounters||[]).find(r =>
+      const rows = (window._allGenCounters||[]).filter(r =>
         String(r[0]).trim() === client &&
-        fmtDate(r[2]) === d &&
-        (!selMach || !r[1] || String(r[1]).trim() === selMach)
-      );
-      if (!row) return null;
-      return type === 'инж' ? parseFloat(row[3])||0 : parseFloat(row[4])||0;
+        (!selMach || !r[1] || String(r[1]).trim() === selMach) &&
+        fmtDate(r[2]) <= d
+      ).sort((a,b) => fmtDate(b[2]).localeCompare(fmtDate(a[2])));
+      if (!rows.length) return null;
+      const row = rows[0];
+      return type === 'промеж' ? parseFloat(row[4])||0 : parseFloat(row[3])||0;
     }
 
-    // getCounter ищет по имени напитка и дате визита
-    // Счётчики: 0=Клиент,1=МашинаID,2=Дата,3=Напиток,4=Счётчик,5=Продано
-    // curDate/prevDate уже в формате DD.MM.YYYY
-
-    // Строки таблицы "Продано за период"
-    const soldRows = allDrinks.map(d => {
-      const cur  = getCounter(d.name, curDate);
-      const prev = getCounter(d.name, prevDate);
-      const sold = (cur!==null && prev!==null) ? Math.max(0, cur-prev) : null;
+    // soldRows: cur/prev = счётчик (col F), sold = Продано порций (col G) напрямую
+    const soldRows = allDrinks.sort((a,b)=>{
+      const oa=a.order!==9999?a.order:99999; const ob=b.order!==9999?b.order:99999;
+      if(oa!==ob) return oa-ob;
+      return (parseInt(a.size)||0)-(parseInt(b.size)||0);
+    }).map(d => {
+      const cur  = getCounter(d.name, curDate, d.size);   // col F текущий счётчик
+      const prev = getCounter(d.name, prevDate, d.size);  // col F предыдущий счётчик
+      const sold = getSold(d.name, curDate, d.size);      // col G = Продано порций
       return {
-        name: d.name, size: d.size,
-        mol: d.mol, vis: d.vis, shok: d.shok, moroz: d.moroz,
+        name: d.name, size: d.size, type: d.type||'',
+        kofe: d.kofe, mol: d.mol, vis: d.vis, shok: d.shok, moroz: d.moroz,
         cur, prev, sold,
         molKg:   (sold!==null && d.mol)   ? +(sold*parseFloat(d.mol)).toFixed(3)   : null,
         visKg:   (sold!==null && d.vis)   ? +(sold*parseFloat(d.vis)).toFixed(3)   : null,
@@ -1175,9 +1428,16 @@ async function loadDash() {
     const totalShok  = soldRows.reduce((s,r) => s + (r.shokKg??0),  0);
     const totalMoroz = soldRows.reduce((s,r) => s + (r.morozKg??0), 0);
 
-    // "С них": вендинг = vis ИЛИ shok ИЛИ moroz; кофе = остальные
-    const vendingSold = soldRows.filter(r=>r.vis||r.shok||r.moroz).reduce((s,r)=>s+(r.sold??0),0);
-    const coffeeSold  = soldRows.filter(r=>!r.vis&&!r.shok&&!r.moroz).reduce((s,r)=>s+(r.sold??0),0);
+    // "С них": кофе и вендинг — берём из листа "Общие счётчики" col G и H
+    // _allGenCounters: row[6]=С них:Кофе, row[7]=С них:Вендинг
+    const _gcRow = (window._allGenCounters||[])
+      .filter(r =>
+        String(r[0]).trim()===client &&
+        (!selMach || String(r[1]).trim()===selMach) &&
+        fmtDate(r[2])<=curDate
+      ).sort((a,b)=>fmtDate(b[2]).localeCompare(fmtDate(a[2])))[0] || null;
+    const coffeeSold  = _gcRow ? (parseFloat(_gcRow[6])||0) : soldRows.filter(r=>!r.type||r.type==='кофе').reduce((s,r)=>s+(r.sold??0),0);
+    const vendingSold = _gcRow ? (parseFloat(_gcRow[7])||0) : soldRows.filter(r=>r.type==='вендинг').reduce((s,r)=>s+(r.sold??0),0);
     const totalAll    = vendingSold + coffeeSold;
 
     // Общий и инженерный счётчики — из листа "Общие счётчики"
@@ -1186,8 +1446,8 @@ async function loadDash() {
     const genSold = (genCur!==null && genPrev!==null) ? Math.max(0, genCur-genPrev) : null;
     const genDiff = (genSold!==null && totalSold>0) ? genSold-totalSold : null;
 
-    const engCur  = getGenCounter('инж', curDate);
-    const engPrev = getGenCounter('инж', prevDate);
+    const engCur  = getGenCounter('промеж', curDate);
+    const engPrev = getGenCounter('промеж', prevDate);
     const engSold = (engCur!==null && engPrev!==null) ? Math.max(0, engCur-engPrev) : null;
     // Проверка: разница инж-общий должна быть одинаковой
     const engGenDiffCur  = (engCur!==null && genCur!==null)   ? engCur-genCur   : null;
@@ -1201,9 +1461,11 @@ async function loadDash() {
 
     // Цены — только непустые
     const priceItems = [
-      ['Classic',cl?.priceClassic,'кг'],['Rosso',cl?.priceRosso,'кг'],['Blu',cl?.priceBlu,'кг'],
-      ['Arabica',cl?.priceArabica,'кг'],['Топинг',cl?.priceToping,'кг'],
-      ['Виски',cl?.priceViski,'кг'],['Исп.крем',cl?.priceKrem,'кг'],['Шоколад',cl?.priceShok,'кг']
+      ['Rosso',cl?.priceRosso,'кг'],['Blu',cl?.priceBlu,'кг'],
+      ['Oro',cl?.priceOro,'кг'],['Arabica',cl?.priceArabica,'кг'],
+      ['Classic',cl?.priceClassic,'кг'],['Молоко',cl?.priceMol,'кг'],
+      ['Виски',cl?.priceViski,'кг'],['Шоколад',cl?.priceShok,'кг'],
+      ['Исп.крем',cl?.priceKrem,'кг']
     ].filter(p=>p[1]);
 
     cont.innerHTML = `
@@ -1219,8 +1481,15 @@ async function loadDash() {
       ${cl?.extra  ? ir('Доп.инвентарь',  cl.extra) : ''}
       ${cl?.service? ir('Сервис',         cl.service) : ''}
       ${cl?.bonus  ? ir('Бонус/прочее',   cl.bonus) : ''}
-      ${cl?.koef   ? ir('Коеф. кофе',     cl.koef)  : ''}
-      ${activeMachines.length ? ir('Аппараты', activeMachines.map(m=>`${m.id} — ${m.model}`).join('<br>')) : ''}
+      ${(()=>{
+        const _dEq = (equipmentData[client]||[]).find(e=>!selMach||String(e.id||'').trim()===selMach);
+        const _dKoef = _dEq ? _dEq.koef : cl?.koef;
+        return _dKoef ? ir('Коеф. кофе', _dKoef) : '';
+      })()}
+      ${activeMachines.length ? `<div class="cc-row">
+        <div class="cc-label">Аппараты</div>
+        <div class="cc-val">${activeMachines.map(m => m.id + ' — ' + m.model).join('<br>')}</div>
+      </div>` : ''}
       ${visitMachObj?.service ? ir('Сервис аппарата', visitMachObj.service) : ''}
     </div>
 
@@ -1230,23 +1499,58 @@ async function loadDash() {
       ${priceItems.map(p=>ir(p[0], p[1]+' грн/'+p[2])).join('')}
     </div>` : ''}
 
-    <!-- ПОСЛЕДНИЙ / ВЫБРАННЫЙ ВИЗИТ -->
+    <!-- ПОСЛЕДНИЙ / ВЫБРАННЫЙ ВИЗИТ — компактная шапка -->
     ${targetVisit ? `
-    <div style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;margin-bottom:12px">
-      <div style="background:var(--bg3);padding:12px 16px;font-family:var(--font-head);font-size:12px;color:var(--accent);letter-spacing:.05em">
-        ${dateInput?'ВИЗИТ':'ПОСЛЕДНИЙ ВИЗИТ'} — ${fmtDate(targetVisit[2])} · ${visitMachObj?visitMachObj.id+' '+visitMachObj.model:visitMachId}
+    <div style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:10px 16px;margin-bottom:12px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:6px">
+      <div style="font-family:var(--font-head);font-size:12px;color:var(--accent);letter-spacing:.05em">
+        ${dateInput?'ВИЗИТ':'ПОСЛЕДНИЙ ВИЗИТ'} — ${fmtDate(targetVisit[1])} · ${visitMachObj?visitMachObj.id+' '+visitMachObj.model:visitMachId}
       </div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:0">
-        ${[['КОФЕ',3,13,'accent-orange'],['МОЛОКО',4,14,'accent-green'],['ВИСКИ',5,15,'accent-purple'],['ШОКОЛАД',6,16,''],['МОРОЖЕНОЕ',7,17,'']].filter(([,oi,zi])=>targetVisit[oi]||targetVisit[zi]).map(([lbl,oi,zi,cls])=>`
-        <div style="padding:14px 16px;border-bottom:.5px solid var(--border)">
-          <div style="font-size:10px;color:var(--muted);font-weight:600;letter-spacing:.08em;margin-bottom:4px">${lbl}</div>
-          <div style="font-size:11px;color:var(--muted)">Завоз</div>
-          <div class="${cls}" style="font-family:var(--font-head);font-size:20px;font-weight:700">${targetVisit[zi]||0} <small style="font-size:12px">кг</small></div>
-          <div style="font-size:11px;color:var(--muted);margin-top:4px">остаток ${targetVisit[oi]||0} кг</div>
-        </div>`).join('')}
-        ${targetVisit[20] ? `<div style="padding:14px 16px;grid-column:1/-1;border-top:.5px solid var(--border);font-size:13px;color:var(--muted)">💬 ${targetVisit[20]}</div>` : ''}
-      </div>
+      ${targetVisit[3] ? `<div style="font-size:12px;color:var(--muted)">💬 ${targetVisit[3]}</div>` : ''}
     </div>` : '<div class="empty-state">Визитов пока нет</div>'}
+
+    <!-- ТАБЛИЦА ОСТАТКОВ / РАСЧЁТОВ / ПОГРЕШНОСТИ / ЗАЯВКИ -->
+    ${targetVisit ? (() => {
+      const tv = targetVisit;
+      const rows = [
+        { label: 'Кофе, кг',      fact: tv[4],  calc: tv[19], pogr: tv[24], zay: tv[9]  },
+        { label: 'Молоко, кг',    fact: tv[5],  calc: tv[20], pogr: tv[25], zay: tv[10] },
+        { label: 'Виски, кг',     fact: tv[6],  calc: tv[21], pogr: tv[26], zay: tv[11] },
+        { label: 'Шоколад, кг',   fact: tv[7],  calc: tv[22], pogr: tv[27], zay: tv[12] },
+        { label: 'Мороженое, кг', fact: tv[8],  calc: tv[23], pogr: tv[28], zay: tv[13] },
+      ];
+      const fmtV = v => (v !== null && v !== undefined && v !== '') ? parseFloat(v).toFixed(3) : '—';
+      const pogrStyle = v => {
+        if (v === null || v === undefined || v === '') return '';
+        const n = parseFloat(v);
+        return (!isNaN(n) && (n < -0.5 || n > 0.5))
+          ? 'background:rgba(255,107,107,.2);color:var(--danger);font-weight:700'
+          : '';
+      };
+      return `
+      <div style="margin-top:12px">
+        <div style="font-family:var(--font-head);font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px">
+          Остатки и заявка на дату визита
+        </div>
+        <div class="info-card" style="overflow-x:auto;padding:0">
+          <table class="visits-table" style="min-width:480px">
+            <tr style="font-size:10px">
+              <th style="text-align:left;min-width:100px;padding:6px 8px"></th>
+              <th style="padding:6px 6px">Факт.<br>остатки</th>
+              <th style="padding:6px 6px">Расч.<br>остатки</th>
+              <th style="padding:6px 6px">Погреш-<br>ность</th>
+              <th style="padding:6px 6px;color:var(--accent)">Заявка</th>
+            </tr>
+            ${rows.map(r => `<tr style="font-size:12px">
+              <td style="padding:5px 8px;font-weight:600">${r.label}</td>
+              <td style="text-align:center;padding:5px 6px">${fmtV(r.fact)}</td>
+              <td style="text-align:center;padding:5px 6px">${fmtV(r.calc)}</td>
+              <td style="text-align:center;padding:5px 6px;${pogrStyle(r.pogr)}">${fmtV(r.pogr)}</td>
+              <td style="text-align:center;padding:5px 6px;color:var(--accent);font-weight:700">${fmtV(r.zay)}</td>
+            </tr>`).join('')}
+          </table>
+        </div>
+      </div>`;
+    })() : ''}
 
     <!-- ТАБЛИЦА: ПРОДАНО ЗА ПЕРИОД -->
     ${soldRows.length ? `
@@ -1255,39 +1559,37 @@ async function loadDash() {
     </div>
     <div class="info-card" style="overflow-x:auto;padding:0">
       <table class="visits-table" style="min-width:580px">
-        <tr>
-          <th style="text-align:left;min-width:120px">Напиток</th>
-          <th>Мол.кг</th>
-          <th>Вис.кг</th>
-          <th>Шок.кг</th>
-          <th>Мор.кг</th>
-          <th style="color:var(--muted)">Счётч.<br>пред</th>
-          <th style="color:var(--muted)">Счётч.<br>тек</th>
-          <th style="color:var(--accent)">Продано<br>шт</th>
+        <tr style="font-size:10px">
+          <th style="text-align:left;min-width:100px;padding:6px 8px">Напиток</th>
+          <th style="color:var(--accent);padding:6px 4px">Продано<br>порций</th>
+          <th style="padding:6px 4px">Кофе<br>кг</th>
+          <th style="padding:6px 4px">Мол.<br>кг</th>
+          <th style="padding:6px 4px">Вис.<br>кг</th>
+          <th style="padding:6px 4px">Шок.<br>кг</th>
+          <th style="padding:6px 4px">Мор.<br>кг</th>
+          <th style="color:var(--muted);padding:6px 4px">Счётч.<br>пред</th>
+          <th style="color:var(--muted);padding:6px 4px">Счётч.<br>тек</th>
         </tr>
-        ${soldRows.map(r=>`<tr>
-          <td>${r.name}<br><span style="font-size:9px;color:var(--muted)">${r.size} мл</span></td>
-          <td style="text-align:center">${r.mol||'—'}</td>
-          <td style="text-align:center">${r.vis||'—'}</td>
-          <td style="text-align:center">${r.shok||'—'}</td>
-          <td style="text-align:center">${r.moroz||'—'}</td>
-          <td style="text-align:center;color:var(--muted)">${r.prev!==null?r.prev:'—'}</td>
-          <td style="text-align:center;color:var(--muted)">${r.cur!==null?r.cur:'—'}</td>
-          <td style="text-align:center;font-weight:700;color:var(--accent)">${r.sold!==null?r.sold:'—'}</td>
+        ${soldRows.map(r=>`<tr style="font-size:11px">
+          <td style="padding:5px 8px">${r.name}<br><span style="font-size:9px;color:var(--muted)">${r.size} мл</span></td>
+          <td style="text-align:center;padding:5px 4px;font-weight:700;color:var(--accent)">${r.sold!==null?r.sold:'—'}</td>
+          <td style="text-align:center;padding:5px 4px;color:var(--accent)">${r.kofe!=null?r.kofe:'—'}</td>
+          <td style="text-align:center;padding:5px 4px">${r.mol||'—'}</td>
+          <td style="text-align:center;padding:5px 4px">${r.vis||'—'}</td>
+          <td style="text-align:center;padding:5px 4px">${r.shok||'—'}</td>
+          <td style="text-align:center;padding:5px 4px">${r.moroz||'—'}</td>
+          <td style="text-align:center;padding:5px 4px;color:var(--muted)">${r.prev!==null?r.prev:'—'}</td>
+          <td style="text-align:center;padding:5px 4px;color:var(--muted)">${r.cur!==null?r.cur:'—'}</td>
         </tr>`).join('')}
         <!-- ИТОГО -->
         <tr style="border-top:2px solid var(--border);background:var(--bg3)">
           <td style="font-weight:700;font-family:var(--font-head);font-size:10px">ИТОГО</td>
-          <td style="text-align:center;color:var(--green);font-weight:700">${totalMol.toFixed(3)}</td>
-          <td style="text-align:center;color:var(--purple);font-weight:700">${totalVis.toFixed(3)}</td>
-          <td style="text-align:center;color:var(--accent);font-weight:700">${totalShok.toFixed(3)}</td>
-          <td style="text-align:center;color:var(--orange,#f5a623);font-weight:700">${totalMoroz.toFixed(3)}</td>
-          <td></td><td></td>
           <td style="text-align:center;font-weight:700;font-size:16px;color:var(--accent)">${totalSold}</td>
+          <td></td><td></td><td></td><td></td><td></td><td></td><td></td>
         </tr>
         <!-- С НИХ + ВСЕГО -->
         <tr style="background:var(--bg2)">
-          <td colspan="8" style="padding:10px 12px;font-size:12px">
+          <td colspan="9" style="padding:10px 12px;font-size:12px">
             <span style="color:var(--muted)">с них:</span>
             вендинг <b style="color:var(--purple)">${vendingSold} шт</b>
             &nbsp;·&nbsp;
@@ -1313,12 +1615,11 @@ async function loadDash() {
           <div>
             <span style="color:var(--muted);font-size:12px">Разница: </span>
             <b style="color:var(--accent);font-size:18px">${genSold!==null?genSold:'—'}</b>
-            ${genDiff!==null?`<span style="margin-left:10px;font-size:12px;color:${Math.abs(genDiff)>5?'var(--danger)':'var(--green)'}">Δ по счётчикам: ${genDiff>0?'+':''}${genDiff}</span>`:''}
           </div>
         </div>
       </div>
       <div style="padding:14px 16px;background:var(--card);border:1px solid var(--border);border-radius:var(--radius)">
-        <div style="font-size:10px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.07em;margin-bottom:8px">Инженерный счётчик аппарата</div>
+        <div style="font-size:10px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.07em;margin-bottom:8px">Промежуточный счётчик аппарата</div>
         <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
           <div>
             <span style="color:var(--muted);font-size:12px">Пред: </span>
@@ -1329,6 +1630,7 @@ async function loadDash() {
           <div>
             <span style="color:var(--muted);font-size:12px">Разница: </span>
             <b style="color:var(--purple);font-size:18px">${engSold!==null?engSold:'—'}</b>
+            ${genDiff!==null?`<span style="margin-left:10px;font-size:12px;color:${Math.abs(genDiff)>5?'var(--danger)':'var(--green)'}">Δ по счётчикам: ${genDiff>0?'+':''}${genDiff}</span>`:''}
           </div>
         </div>
       </div>
@@ -1352,15 +1654,15 @@ function renderHistory() {
   cont.innerHTML = visitsData.slice(0,20).map(r=>`
     <div class="history-item">
       <div class="history-header">
-        <div class="history-date">${r[2]||'—'}</div>
-        <div class="history-client">${r[0]||''} ${r[1]?'· '+r[1]:''}</div>
+        <div class="history-date">${r[1]||'—'}</div>
+        <div class="history-client">${r[0]||''} ${r[2]?'· '+r[2]:''}</div>
       </div>
       <div class="history-grid">
         <div class="history-cell"><div class="history-cell-label">Ост.кофе</div><div class="history-cell-val accent-orange">${r[5]||'—'}</div></div>
         <div class="history-cell"><div class="history-cell-label">Заявка кофе</div><div class="history-cell-val accent-green">${r[10]||'—'}</div></div>
         <div class="history-cell"><div class="history-cell-label">Ост.молоко</div><div class="history-cell-val">${r[6]||'—'}</div></div>
       </div>
-      ${r[20]?`<div style="margin-top:8px;font-size:12px;color:var(--muted)">💬 ${r[20]}</div>`:''}
+      ${r[3]?`<div style="margin-top:8px;font-size:12px;color:var(--muted)">💬 ${r[3]}</div>`:''}
     </div>`).join('');
 }
 
@@ -1380,9 +1682,9 @@ function onChangeClient() {
         <div class="drink-name">${d.name}</div><div class="drink-size">${d.size} мл</div>
       </div>
       <div class="input-grid" style="width:100%">
-        ${d.mol  ? `<div class="input-group"><label>Молоко кг</label><input type="number" id="chg-nm-${i}" step="0.001" placeholder="${d.mol}"></div>` : ''}
-        ${d.vis  ? `<div class="input-group"><label>Виски кг</label><input type="number" id="chg-nv-${i}" step="0.001" placeholder="${d.vis}"></div>` : ''}
-        ${d.shok ? `<div class="input-group"><label>Шок кг</label><input type="number" id="chg-ns-${i}" step="0.001" placeholder="${d.shok}"></div>` : ''}
+        ${d.mol  ? `<div class="input-group"><label>Молоко кг</label><input inputmode="decimal" type="number" id="chg-nm-${i}" step="0.001" placeholder="${d.mol}"></div>` : ''}
+        ${d.vis  ? `<div class="input-group"><label>Виски кг</label><input inputmode="decimal" type="number" id="chg-nv-${i}" step="0.001" placeholder="${d.vis}"></div>` : ''}
+        ${d.shok ? `<div class="input-group"><label>Шок кг</label><input inputmode="decimal" type="number" id="chg-ns-${i}" step="0.001" placeholder="${d.shok}"></div>` : ''}
       </div>
     </div>`).join('');
   window._chgDrinks=drinks;
@@ -1392,15 +1694,23 @@ function onChangeType(val) {
   document.getElementById('chg-machine-fields').style.display = val==='аппарат'     ? 'block' : 'none';
   document.getElementById('chg-contact-fields').style.display = val==='контакт'     ? 'block' : 'none';
   document.getElementById('chg-deact-warn').style.display     = val==='деактивация' ? 'block' : 'none';
+  document.getElementById('chg-other-fields').style.display   = val==='другое'      ? 'block' : 'none';
+  const noteEl = document.getElementById('chg-note');
+  if (noteEl) {
+    if (val==='деактивация') noteEl.placeholder = 'Причина снятия и дополнительные примечания';
+    else if (val==='другое')  noteEl.placeholder = 'Дополнительные примечания';
+    else noteEl.placeholder = 'Причина изменения и дополнительные примечания';
+  }
 }
 
 async function submitChange() {
   const client  = document.getElementById('chg-client').value;
   const machine = document.getElementById('chg-machine').value;
   const type    = document.querySelector('input[name="chg-type"]:checked')?.value;
-  if (!client||!machine||!type) { showToast('Заполните все поля', true); return; }
+  if (!type) { showToast('Выберите тип изменения', true); return; }
+  if (type !== 'другое' && (!client||!machine)) { showToast('Выберите клиента и аппарат', true); return; }
   const di=document.getElementById('chg-date').value;
-  const ds=di?(()=>{const[y,m,d]=di.split('-');return`${d}.${m}.${y}`})():new Date().toLocaleDateString('uk-UA');
+  const ds=di?(()=>{const[y,m,d]=di.split('-');return`${d}.${m}.${y}`})():(()=>{const n=new Date();return`${String(n.getDate()).padStart(2,'0')}.${String(n.getMonth()+1).padStart(2,'0')}.${n.getFullYear()}`})();
   const note=document.getElementById('chg-note').value.trim();
   const rows=[];
   if (type==='норматив') {
@@ -1411,13 +1721,40 @@ async function submitChange() {
       if(ml||vs||sk) rows.push([ds,client,machine,'норматив — '+d.name,`мол:${d.mol||'-'} вис:${d.vis||'-'} шок:${d.shok||'-'}`,`мол:${ml||d.mol||'-'} вис:${vs||d.vis||'-'} шок:${sk||d.shok||'-'}`,CFG.name,note]);
     });
   } else if (type==='аппарат') {
-    const nid=document.getElementById('chg-new-machine-id').value;
-    const nm=document.getElementById('chg-new-model').value;
-    const ns=document.getElementById('chg-new-serial').value;
+    const nid=document.getElementById('chg-new-machine-id').value.trim();
+    const nm=document.getElementById('chg-new-model').value.trim();
+    const ns=document.getElementById('chg-new-serial').value.trim();
     const nk=document.getElementById('chg-new-koef').value;
     const os=document.getElementById('chg-old-status').value||'снята';
-    rows.push([ds,client,machine,'смена аппарата',machine,nid||'—',CFG.name,note]);
-    if(nid&&nm){await scriptPost({action:'addEquipment',row:[nid,client,nm,ns,ds,'','активна',nk||0.01,note]});await scriptPost({action:'updateEquipmentStatus',machineId:machine,dateOff:ds,status:os});}
+    rows.push([ds,client,machine,'смена аппарата',machine,nid||nm||'—',CFG.name,note]);
+    if (nid&&nm) {
+      await Promise.all([
+        scriptPost({action:'addEquipment',row:[nid,client,nm,ns||nid,ds,'','активна',nk||0.01,'']}),
+        scriptPost({action:'updateEquipmentStatus',machineId:machine,dateOff:ds,status:os})
+      ]);
+    }
+    // Начальные счётчики
+    const chgGen=document.getElementById('chg-gen-counter')?.value;
+    const chgEng=document.getElementById('chg-eng-counter')?.value;
+    if ((chgGen||chgEng)&&nid) await scriptPost({action:'addGenCounters',row:[client,nid,ds,chgGen||'',chgEng||'']});
+    // Напитки
+    const chgDL=document.getElementById('chg-drinks-list');
+    if (chgDL&&nid) {
+      const chgDRows=[];
+      Array.from(chgDL.children).forEach((_,i)=>{
+        const dn=document.getElementById('chg-d-name-'+i)?.value.trim();
+        const dsz=document.getElementById('chg-d-size-'+i)?.value;
+        const dm=document.getElementById('chg-d-mol-'+i)?.value;
+        const dv=document.getElementById('chg-d-vis-'+i)?.value;
+        const dsk=document.getElementById('chg-d-shok-'+i)?.value;
+        const dmr=document.getElementById('chg-d-moroz-'+i)?.value;
+        if(dn) chgDRows.push([client,dn,nid,ds,'',dsz||'','',dm||'',dv||'',dsk||'',dmr||'']);
+      });
+      if(chgDRows.length) await scriptPost({action:'addDrinks',rows:chgDRows});
+    }
+  } else if (type==='другое') {
+    const otherText=document.getElementById('chg-other-text')?.value.trim()||'';
+    rows.push([ds,client||'—',machine||'—','Другое','',otherText,CFG.name,note]);
   } else if (type==='контакт') {
     rows.push([ds,client,machine,'контакт','—',document.getElementById('chg-new-contact').value,CFG.name,note]);
   } else if (type==='деактивация') {
@@ -1470,11 +1807,11 @@ function addDrinkRow(){
         '<label>Введите название вручную</label>' +
         '<input type="text" id="nd-name-'+i+'" placeholder="Название напитка">' +
       '</div>' +
-      '<div class="input-group"><label>Стакан мл</label><input type="number" id="nd-size-'+i+'" placeholder="340"></div>' +
-      '<div class="input-group"><label>Молоко кг</label><input type="number" id="nd-mol-'+i+'" step="0.001" placeholder="0.038"></div>' +
-      '<div class="input-group"><label>Виски кг</label><input type="number" id="nd-vis-'+i+'" step="0.001" placeholder=""></div>' +
-      '<div class="input-group"><label>Шоколад кг</label><input type="number" id="nd-shok-'+i+'" step="0.001" placeholder=""></div>' +
-      '<div class="input-group"><label>Мороженое кг</label><input type="number" id="nd-moroz-'+i+'" step="0.001" placeholder=""></div>' +
+      '<div class="input-group"><label>Стакан мл</label><input inputmode="decimal" type="number" id="nd-size-'+i+'" placeholder="340"></div>' +
+      '<div class="input-group"><label>Молоко кг</label><input inputmode="decimal" type="number" id="nd-mol-'+i+'" step="0.001" placeholder="0.038"></div>' +
+      '<div class="input-group"><label>Виски кг</label><input inputmode="decimal" type="number" id="nd-vis-'+i+'" step="0.001" placeholder=""></div>' +
+      '<div class="input-group"><label>Шоколад кг</label><input inputmode="decimal" type="number" id="nd-shok-'+i+'" step="0.001" placeholder=""></div>' +
+      '<div class="input-group"><label>Мороженое кг</label><input inputmode="decimal" type="number" id="nd-moroz-'+i+'" step="0.001" placeholder=""></div>' +
     '</div>';
   document.getElementById('nc-drinks-list').appendChild(div);
 }
@@ -1518,10 +1855,12 @@ async function submitNewClient(){
     const er=[mid,name,v('nc-model'),v('nc-serial'),today,'','активна',v('nc-koef')||0.01,v('nc-eq-service')];
     await scriptPost({action:'addEquipment',row:er});
     const drs=[];
+    let drOrder=1;
     for(let i=0;i<drinkRowCount;i++){
       const ne=document.getElementById(`nd-name-${i}`);if(!ne)continue;
       const dn=ne.value.trim();if(!dn)continue;
-      drs.push([name,dn,mid,today,'',v(`nd-size-${i}`),v(`nd-mol-${i}`),v(`nd-vis-${i}`),v(`nd-shok-${i}`)]);
+      // col O = порядковый номер напитка (для сортировки в Справ. расх. кофе)
+      drs.push([name,dn,mid,today,'',v(`nd-size-${i}`),v(`nd-mol-${i}`),v(`nd-vis-${i}`),v(`nd-shok-${i}`),drOrder++]);
     }
     if(drs.length) await scriptPost({action:'addDrinks',rows:drs});
     showToast(`✓ Клиент "${name}" создан!`);
