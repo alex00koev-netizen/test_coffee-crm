@@ -147,8 +147,8 @@ body{font-family:var(--font-body);background:var(--bg);color:var(--text);min-hei
     <div class="config-logo"><span style="font-family:var(--font-head);font-size:28px;font-weight:700;letter-spacing:.05em;color:#fff">MEGA<span style="color:var(--accent)">UG</span></span></div>
     <div class="config-sub">Настройка подключения к Google Sheets</div>
     <div class="config-field">
-      <label>Ваше имя (торговый представитель)</label>
-      <select id="cfg-name">
+      <label>Ваше имя</label>
+      <select id="cfg-name" onchange="onCfgUserChange()">
         <option value="">— выберите —</option>
         <optgroup label="Супервайзер / Бухгалтер">
           <option value="Долженко">Долженко Эдуард</option>
@@ -171,10 +171,20 @@ body{font-family:var(--font-body);background:var(--bg);color:var(--text);min-hei
       <label>ПАРОЛЬ</label>
       <input id="cfg-password" type="password" placeholder="Введите пароль">
     </div>
+    <!-- Поле для торговых/техников — один скрипт -->
     <div class="config-field" id="cfg-url-field">
       <label>URL Apps Script</label>
       <input id="cfg-script-url" type="text" placeholder="https://script.google.com/macros/s/.../exec">
       <div class="config-hint">Вводится один раз — сохраняется автоматически</div>
+    </div>
+    <!-- Поля для админов — до 5 скриптов -->
+    <div id="cfg-admin-urls" style="display:none">
+      <div class="config-hint" style="margin-bottom:10px">Вставьте URL скриптов торговых (незаполненные поля игнорируются)</div>
+      <div class="config-field"><label>Скрипт 1</label><input id="cfg-admin-url-0" type="text" placeholder="https://script.google.com/macros/s/.../exec"></div>
+      <div class="config-field"><label>Скрипт 2</label><input id="cfg-admin-url-1" type="text" placeholder="https://script.google.com/macros/s/.../exec"></div>
+      <div class="config-field"><label>Скрипт 3</label><input id="cfg-admin-url-2" type="text" placeholder="https://script.google.com/macros/s/.../exec"></div>
+      <div class="config-field"><label>Скрипт 4</label><input id="cfg-admin-url-3" type="text" placeholder="https://script.google.com/macros/s/.../exec"></div>
+      <div class="config-field"><label>Скрипт 5</label><input id="cfg-admin-url-4" type="text" placeholder="https://script.google.com/macros/s/.../exec"></div>
     </div>
     <button class="btn-primary" onclick="saveConfig()">Войти</button>
     <div id="cfg-error" style="display:none;margin-top:8px;padding:10px 14px;background:#ff6b6b22;border:1px solid #ff6b6b55;border-radius:8px;font-size:13px;color:#ff6b6b;text-align:center"></div>
@@ -187,6 +197,11 @@ body{font-family:var(--font-body);background:var(--bg);color:var(--text);min-hei
   <div class="topbar">
     <div class="topbar-logo" onclick="fetchAllData()" title="Обновить данные" style="cursor:pointer;user-select:none"><span style="font-family:var(--font-head);font-size:18px;font-weight:700;letter-spacing:.05em;color:#fff">MEGA<span style="color:var(--accent)">UG</span></span></div>
     <div id="load-status" style="display:none;font-size:11px;padding:3px 10px;border-radius:20px;background:var(--bg3);max-width:200px;text-align:center;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></div>
+    <div id="admin-agent-filter" style="display:none">
+      <select id="admin-agent-select" onchange="onAdminAgentChange()" style="background:var(--bg3);border:1px solid var(--border);border-radius:20px;color:var(--text);font-size:12px;padding:4px 10px;outline:none">
+        <option value="">— все торговые —</option>
+      </select>
+    </div>
     <div class="topbar-user"><div class="topbar-dot"></div><span id="topbar-name">—</span></div>
     <button class="topbar-settings" onclick="openConfig()">⚙</button>
   </div>
@@ -535,7 +550,16 @@ function isAdmin()     { return getUserRole() === 'admin'; }
 function isTech()      { return getUserRole() === 'tech'; }
 function isAgent()     { return getUserRole() === 'agent'; }
 // ══ CONFIG ════════════════════════════════════════════════════════════════
-let CFG = { name: '', scriptUrl: '' };
+let CFG = { name: '', scriptUrl: '', adminUrls: [] };
+
+// Показывает/скрывает поля скриптов в зависимости от роли
+function onCfgUserChange() {
+  const key  = document.getElementById('cfg-name').value;
+  const user = USERS[key];
+  const isAdm = user && user.role === 'admin';
+  document.getElementById('cfg-url-field').style.display    = isAdm ? 'none' : '';
+  document.getElementById('cfg-admin-urls').style.display   = isAdm ? ''     : 'none';
+}
 
 function loadConfig() {
   const s = localStorage.getItem('crm_cfg');
@@ -544,29 +568,33 @@ function loadConfig() {
     if (CFG.userKey && USERS[CFG.userKey]) {
       CURRENT_USER = { key: CFG.userKey, ...USERS[CFG.userKey] };
     }
-    const urlInp = document.getElementById('cfg-script-url');
-    if (urlInp && CFG.scriptUrl) {
-      urlInp.value = CFG.scriptUrl;
-      const urlField = document.getElementById('cfg-url-field');
-      if (urlField) urlField.style.display = 'none';
+    if (isAdmin()) {
+      // Восстанавливаем URL-ы скриптов в поля
+      (CFG.adminUrls || []).forEach((url, i) => {
+        const el = document.getElementById('cfg-admin-url-'+i);
+        if (el) el.value = url;
+      });
+      if (CFG.adminUrls && CFG.adminUrls.length) { startApp(); return true; }
+    } else {
+      const urlInp = document.getElementById('cfg-script-url');
+      if (urlInp && CFG.scriptUrl) {
+        urlInp.value = CFG.scriptUrl;
+        const urlField = document.getElementById('cfg-url-field');
+        if (urlField) urlField.style.display = 'none';
+      }
+      if (CFG.name && CFG.scriptUrl) { startApp(); return true; }
     }
-    if (CFG.name && CFG.scriptUrl) { startApp(); return true; }
   }
   return false;
 }
-function saveConfig() {
-  const userKey = document.getElementById('cfg-name').value.trim();
-  const password = document.getElementById('cfg-password').value;
-  const errEl = document.getElementById('cfg-error');
 
-  if (!userKey) {
-    errEl.textContent = 'Выберите пользователя из списка';
-    errEl.style.display = 'block'; return;
-  }
-  if (!password) {
-    errEl.textContent = 'Введите пароль';
-    errEl.style.display = 'block'; return;
-  }
+function saveConfig() {
+  const userKey  = document.getElementById('cfg-name').value.trim();
+  const password = document.getElementById('cfg-password').value;
+  const errEl    = document.getElementById('cfg-error');
+
+  if (!userKey) { errEl.textContent='Выберите пользователя из списка'; errEl.style.display='block'; return; }
+  if (!password) { errEl.textContent='Введите пароль'; errEl.style.display='block'; return; }
 
   const user = USERS[userKey];
   if (!user || user.pass !== password) {
@@ -576,40 +604,45 @@ function saveConfig() {
     return;
   }
 
-  // Пароль верный — берём URL из поля или localStorage
-  let url = document.getElementById('cfg-script-url').value.trim();
-  if (!url) {
-    const saved_cfg = localStorage.getItem('crm_cfg');
-    if (saved_cfg) url = (JSON.parse(saved_cfg).scriptUrl || '');
-  }
-  if (!url) {
-    errEl.textContent = 'Введите URL Apps Script';
-    errEl.style.display = 'block'; return;
-  }
-
   errEl.style.display = 'none';
   CURRENT_USER = { key: userKey, ...user };
-  CFG = {
-    name: user.tp || userKey,  // для торговых = имя ТП, для остальных = key
-    userKey,
-    role: user.role,
-    label: user.label,
-    scriptUrl: url,
-    version: APP_VERSION
-  };
+
+  if (user.role === 'admin') {
+    // Собираем все заполненные URL скриптов
+    const adminUrls = [];
+    for (let i = 0; i < 5; i++) {
+      const u = (document.getElementById('cfg-admin-url-'+i)?.value || '').trim();
+      if (u) adminUrls.push(u);
+    }
+    if (!adminUrls.length) {
+      errEl.textContent = 'Введите хотя бы один URL скрипта';
+      errEl.style.display = 'block'; return;
+    }
+    CFG = { name: userKey, userKey, role: 'admin', label: user.label, scriptUrl: adminUrls[0], adminUrls, version: APP_VERSION };
+  } else {
+    let url = document.getElementById('cfg-script-url').value.trim();
+    if (!url) {
+      const saved = localStorage.getItem('crm_cfg');
+      if (saved) url = JSON.parse(saved).scriptUrl || '';
+    }
+    if (!url) { errEl.textContent='Введите URL Apps Script'; errEl.style.display='block'; return; }
+    CFG = { name: user.tp || userKey, userKey, role: user.role, label: user.label, scriptUrl: url, adminUrls: [], version: APP_VERSION };
+  }
+
   localStorage.setItem('crm_cfg', JSON.stringify(CFG));
   document.getElementById('cfg-saved').style.display = 'block';
   setTimeout(startApp, 400);
 }
+
 function openConfig() {
-  const urlInp = document.getElementById('cfg-script-url');
-  const urlField = document.getElementById('cfg-url-field');
-  if (urlInp && CFG.scriptUrl) {
-    urlInp.value = CFG.scriptUrl;
-    if (urlField) urlField.style.display = 'block';
-  }
   const nameEl = document.getElementById('cfg-name');
-  if (nameEl && CFG.userKey) nameEl.value = CFG.userKey;
+  if (nameEl && CFG.userKey) { nameEl.value = CFG.userKey; onCfgUserChange(); }
+  if (isAdmin()) {
+    (CFG.adminUrls||[]).forEach((url,i)=>{ const el=document.getElementById('cfg-admin-url-'+i); if(el)el.value=url; });
+  } else {
+    const urlInp = document.getElementById('cfg-script-url');
+    if (urlInp && CFG.scriptUrl) { urlInp.value = CFG.scriptUrl; document.getElementById('cfg-url-field').style.display='block'; }
+  }
   document.getElementById('cfg-password').value = '';
   document.getElementById('cfg-error').style.display = 'none';
   document.getElementById('config-overlay').style.display = 'flex';
@@ -731,6 +764,16 @@ function applyRoleRestrictions() {
       if (el.textContent.trim() === 'КЛИЕНТ') el.style.display = 'none';
     });
   }
+  // Админ: только Дашборд, История, Изменения — убрать Визит и Клиент
+  if (isAdmin()) {
+    document.querySelectorAll('.nav-tab').forEach(el => {
+      const txt = el.textContent.trim();
+      if (txt === 'ВИЗИТ' || txt === 'КЛИЕНТ') el.style.display = 'none';
+    });
+    // Показываем фильтр по торговому
+    const agentFilter = document.getElementById('admin-agent-filter');
+    if (agentFilter) agentFilter.style.display = '';
+  }
 }
 
 async function startApp() {
@@ -760,6 +803,50 @@ function setStatus(msg, err) {
   el.textContent = msg;
   el.style.color = err ? 'var(--danger)' : 'var(--green)';
   el.style.display = 'block';
+}
+
+// ── Фильтр по торговому для админа ─────────────────────────────────────
+let _adminAllData = null; // полные данные всех торговых
+let _adminAgents  = [];   // список торговых [{label, tp}]
+
+function onAdminAgentChange() {
+  const tp = document.getElementById('admin-agent-select')?.value || '';
+  if (!_adminAllData) return;
+  if (!tp) {
+    // Показать всех
+    clientsData   = _adminAllData.clientsData;
+    drinksData    = _adminAllData.drinksData;
+    equipmentData = _adminAllData.equipmentData;
+    visitsData    = _adminAllData.visitsData;
+  } else {
+    // Фильтр по ТП
+    clientsData   = _adminAllData.clientsData.filter(c => String(c.tp||'').trim() === tp);
+    visitsData    = _adminAllData.visitsData.filter(r => String(r[2]||'').trim() === tp);
+    // drinksData и equipmentData фильтруем по клиентам
+    const myClients = new Set(clientsData.map(c => c.name));
+    drinksData    = Object.fromEntries(Object.entries(_adminAllData.drinksData).filter(([k]) => myClients.has(k)));
+    equipmentData = Object.fromEntries(Object.entries(_adminAllData.equipmentData).filter(([k]) => myClients.has(k)));
+  }
+  populateSelects();
+  renderHistory();
+}
+
+// Вспомогательная функция — загрузить данные из одного скрипта
+async function fetchFromScript(scriptUrl) {
+  // Временно подменяем CFG.scriptUrl для scriptGet
+  const origUrl = CFG.scriptUrl;
+  CFG.scriptUrl = scriptUrl;
+  try {
+    const raw   = await scriptGet('Справ. Клиенты');
+    const spRaw = await scriptGet('Справ. расх. кофе');
+    const visRaw = await scriptGet('Визиты', 6);
+    const eqRaw  = await scriptGet('Оборудование');
+    const scRaw  = await scriptGet('Счетчики расхода');
+    const gcRaw  = await safeGet('Общие счётчики', 6);
+    return { raw, spRaw, visRaw, eqRaw, scRaw, gcRaw, scriptUrl };
+  } finally {
+    CFG.scriptUrl = origUrl;
+  }
 }
 
 async function fetchAllData() {
@@ -935,8 +1022,66 @@ async function fetchAllData() {
       const rr = [...r]; rr[2] = fmtDate(rr[2]); return rr;
     });
 
+    // ── Если админ — дополнительно загружаем остальные скрипты ─────────
+    if (isAdmin() && (CFG.adminUrls||[]).length > 1) {
+      setStatus('Загружаем данные торговых...');
+      const otherUrls = CFG.adminUrls.slice(1);
+      const otherResults = await Promise.allSettled(otherUrls.map(url => fetchFromScript(url)));
+      otherResults.forEach(res => {
+        if (res.status !== 'fulfilled') return;
+        const d = res.value;
+        // Мёржим клиентов
+        const addClients = d.raw.slice(3).filter(r => r[0] && String(r[10]||'').trim() !== 'Нет').map(r => ({
+          name: String(r[0]||'').trim(), type: String(r[2]||''), address: String(r[3]||''),
+          contact: String(r[4]||''), extra: String(r[5]||''), service: String(r[6]||''),
+          bonus: String(r[7]||''), note: String(r[8]||''), otsr: String(r[9]||''),
+          active: String(r[10]||''), day: String(r[11]||'').toLowerCase().trim(),
+          tp: String(r[12]||'').trim(), koef: r[13]||0.01, scriptUrl: d.scriptUrl
+        }));
+        clientsData = clientsData.concat(addClients);
+        // Мёржим визиты
+        const addVisits = d.visRaw.slice(3).filter(r=>r[0]).map(r=>{const rr=[...r];rr[1]=fmtDate(rr[1]);return rr;});
+        visitsData = visitsData.concat(addVisits).sort((a,b)=>(b[1]||'').localeCompare(a[1]||'')).slice(0,200);
+        // Мёржим оборудование
+        d.eqRaw.slice(3).filter(r=>r[0]&&r[1]).forEach(r=>{
+          const cl=String(r[1]).trim();
+          if(!equipmentData[cl])equipmentData[cl]=[];
+          equipmentData[cl].push({id:String(r[0]||''),serial:String(r[0]||''),model:String(r[2]||''),
+            dateOn:String(r[3]||''),dateOff:String(r[4]||''),status:String(r[5]||''),koef:r[6]||0.01,note:String(r[7]||'')});
+        });
+        // Мёржим напитки
+        d.spRaw.slice(3).filter(r=>r[0]&&r[1]&&!r[4]).forEach(r=>{
+          const cl=String(r[0]).trim();
+          if(!drinksData[cl])drinksData[cl]=[];
+          const key=cl+'|'+String(r[1]).trim()+'|'+String(r[5]||'');
+          if(!drinksData[cl].find(d=>d._key===key)){
+            drinksData[cl].push({_key:key,name:String(r[1]||'').trim(),serial:String(r[2]||'').trim(),
+              size:r[5]!=null?String(r[5]):'',mol:r[7]||null,vis:r[8]||null,shok:r[9]||null,moroz:r[10]||null,koef:r[6]||null});
+          }
+        });
+      });
+
+      // Сохраняем полные данные для фильтра по торговому
+      _adminAllData = { clientsData:[...clientsData], drinksData:{...drinksData}, equipmentData:{...equipmentData}, visitsData:[...visitsData] };
+      // Заполняем список торговых в фильтре
+      const tps = [...new Set(clientsData.map(c=>c.tp).filter(Boolean))].sort();
+      const sel = document.getElementById('admin-agent-select');
+      if (sel) {
+        sel.innerHTML = '<option value="">— все торговые —</option>' + tps.map(tp=>`<option value="${tp}">${tp}</option>`).join('');
+      }
+    }
+
     setStatus('✓ Данные загружены', false); setTimeout(()=>{ const el=document.getElementById('load-status'); if(el)el.style.display='none'; },2000); populateSelects();
     renderHistory();
+    // ── Сохраняем кэш для офлайн-режима ─────────────────────────────────
+    try {
+      localStorage.setItem('cache_clients',   JSON.stringify(clientsData));
+      localStorage.setItem('cache_drinks',    JSON.stringify(drinksData));
+      localStorage.setItem('cache_equipment', JSON.stringify(equipmentData));
+      localStorage.setItem('cache_visits',    JSON.stringify(visitsData));
+      localStorage.setItem('cache_drinkOpts', JSON.stringify(window._drinkOptions||[]));
+      localStorage.setItem('cache_time',      new Date().toISOString());
+    } catch(ce) { console.warn('Кэш не сохранён:', ce); }
   } catch(e) {
     const msg = 'Ошибка: ' + e.message;
     const el = document.getElementById('load-status');
@@ -945,6 +1090,29 @@ async function fetchAllData() {
       el.style.color = 'var(--danger)';
       el.style.display = 'block';
     }
+    // ── Пробуем загрузить кэш ───────────────────────────────────────────
+    try {
+      const cc = localStorage.getItem('cache_clients');
+      if (cc) {
+        clientsData   = JSON.parse(cc);
+        drinksData    = JSON.parse(localStorage.getItem('cache_drinks')    || '{}');
+        equipmentData = JSON.parse(localStorage.getItem('cache_equipment') || '{}');
+        visitsData    = JSON.parse(localStorage.getItem('cache_visits')    || '[]');
+        window._drinkOptions = JSON.parse(localStorage.getItem('cache_drinkOpts') || '[]');
+        const cacheTime = localStorage.getItem('cache_time');
+        const cacheAge  = cacheTime ? Math.round((Date.now()-new Date(cacheTime))/60000) : '?';
+        populateSelects();
+        renderHistory();
+        if (el) {
+          el.textContent = `⚠️ Офлайн — данные из кэша (${cacheAge} мин. назад)`;
+          el.style.color   = 'var(--accent)';
+          el.style.display = 'block';
+        }
+        showToast(`⚠️ Нет сети — показаны данные ${cacheAge} мин. назад`, false);
+        console.warn('fetchAllData: используем кэш');
+        return;
+      }
+    } catch(ce) { console.warn('Кэш недоступен:', ce); }
     showToast(msg, true);
     console.error('fetchAllData error:', e);
   }
@@ -1671,19 +1839,33 @@ function ir(k,v) { return `<div class="info-row"><div class="info-key">${k}</div
 function renderHistory() {
   const cont = document.getElementById('history-content');
   if (!visitsData.length) { cont.innerHTML='<div class="empty-state">Визитов пока нет</div>'; return; }
-  cont.innerHTML = visitsData.slice(0,20).map(r=>`
-    <div class="history-item">
+  // r[0]=ТТ r[1]=Дата r[2]=ТП r[3]=Примечание
+  // r[4]=Ост.кофе r[5]=Ост.молоко r[6]=Ост.виски r[7]=Ост.шоколад r[8]=Ост.мороженое
+  cont.innerHTML = visitsData.slice(0,20).map(r => {
+    const osts = [
+      {label:'Ост. кофе',   val: r[4], cls:'accent-orange'},
+      {label:'Ост. молока', val: r[5], cls:''},
+      {label:'Ост. виски',  val: r[6], cls:''},
+      {label:'Ост. шок.',   val: r[7], cls:''},
+      {label:'Ост. морож.', val: r[8], cls:''},
+    ].filter(o => o.val !== '' && o.val !== null && o.val !== undefined);
+    const grid = osts.length
+      ? `<div class="history-grid" style="grid-template-columns:repeat(${Math.min(osts.length,3)},1fr)">
+          ${osts.map(o=>`<div class="history-cell">
+            <div class="history-cell-label">${o.label}</div>
+            <div class="history-cell-val ${o.cls}">${o.val||'—'}</div>
+          </div>`).join('')}
+        </div>`
+      : '';
+    return `<div class="history-item">
       <div class="history-header">
         <div class="history-date">${r[1]||'—'}</div>
         <div class="history-client">${r[0]||''} ${r[2]?'· '+r[2]:''}</div>
       </div>
-      <div class="history-grid">
-        <div class="history-cell"><div class="history-cell-label">Ост.кофе</div><div class="history-cell-val accent-orange">${r[5]||'—'}</div></div>
-        <div class="history-cell"><div class="history-cell-label">Заявка кофе</div><div class="history-cell-val accent-green">${r[10]||'—'}</div></div>
-        <div class="history-cell"><div class="history-cell-label">Ост.молоко</div><div class="history-cell-val">${r[6]||'—'}</div></div>
-      </div>
+      ${grid}
       ${r[3]?`<div style="margin-top:8px;font-size:12px;color:var(--muted)">💬 ${r[3]}</div>`:''}
-    </div>`).join('');
+    </div>`;
+  }).join('');
 }
 
 // ══ ИЗМЕНЕНИЯ ══════════════════════════════════════════════════════════════
@@ -1953,7 +2135,10 @@ async function submitNewClient(){
     }
     await Promise.all(ncPromises);
     showToast(`✓ Клиент "${name}" создан!`);
-    ['nc-date','nc-name','nc-address','nc-contact','nc-type','nc-day','nc-bonus','nc-otsr','nc-extra','nc-service','nc-machine-id','nc-model','nc-serial','nc-koef','nc-eq-service','nc-gen-counter','nc-eng-counter'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+    ['nc-date','nc-name','nc-address','nc-contact','nc-type','nc-day','nc-bonus','nc-otsr','nc-extra','nc-service','nc-machine-id','nc-model','nc-serial','nc-koef','nc-gen-counter','nc-eng-counter','nc-note'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+    // Сбрасываем select модели и скрываем поле ручного ввода
+    const _ms=document.getElementById('nc-model-select');if(_ms)_ms.value='';
+    const _mw=document.getElementById('nc-model-manual-wrap');if(_mw)_mw.style.display='none';;
     document.getElementById('nc-drinks-list').innerHTML=''; drinkRowCount=0;
     await fetchAllData();
   }catch(e){showToast('Ошибка: '+e.message,true);}
