@@ -483,14 +483,14 @@ body{font-family:var(--font-body);background:var(--bg);color:var(--text);min-hei
     </div>
     <div class="input-grid">
       <div class="input-group">
-        <label>Инженерный счётчик</label>
-        <input inputmode="numeric" type="number" id="nc-eng-counter" step="1" min="0" placeholder="45000">
-        <div class="unit">начальное показание</div>
+        <label>Общий счётчик</label>
+        <input inputmode="numeric" type="number" id="nc-gen-counter" step="1" min="0" placeholder="25000">
+        <div class="unit">порции</div>
       </div>
       <div class="input-group">
-        <label>Общий счётчик</label>
-        <input inputmode="numeric" type="number" id="nc-gen-counter" step="1" min="0" placeholder="22000">
-        <div class="unit">начальное показание</div>
+        <label>Промежуточный счётчик</label>
+        <input inputmode="numeric" type="number" id="nc-eng-counter" step="1" min="0" placeholder="100">
+        <div class="unit">порции</div>
       </div>
     </div>
 
@@ -1924,8 +1924,8 @@ async function submitNewClient(){
     const ncDate = _ncDateRaw
       ? (d => `${d[2]}.${d[1]}.${d[0]}`)((_ncDateRaw).split('-'))
       : today;
-    const cr=[name,name,v('nc-type'),v('nc-address'),v('nc-contact'),v('nc-extra'),'Да',v('nc-day'),CFG.name];
-    const er=[mid,name,v('nc-model'),ncDate,'','активна',v('nc-koef')||0.01,v('nc-note')];
+    const cr=[name,name,v('nc-type'),v('nc-address'),v('nc-contact'),v('nc-extra'),'Да',v('nc-day'),CFG.name]; // коеф в Справ.Клиенты не передаём
+    const er=[mid,name,v('nc-model'),ncDate,'','активна',String(v('nc-koef')||0.01).replace('.',','),v('nc-note')];
     const drs=[];
     let drOrder=1;
     for(let i=0;i<drinkRowCount;i++){
