@@ -837,18 +837,21 @@ async function fetchAllData() {
 
     // ── Справочник напитки (для выпадающего при создании клиента) ────────
     setStatus('Загружаем справочник напитков...'); const napRaw = await safeGet('Справ.нап.');
-    window._drinkOptions = napRaw.slice(1).filter(r => r[0])
-      .map(r => {
-        const comp = String(r[3] || '').toLowerCase(); // col D = Что входит
-        return {
-          name:  String(r[0]).trim(),
-          size:  r[1] || '',
-          mol:   comp.includes('молоко')    ? 1 : 0,
-          vis:   comp.includes('виски')     ? 1 : 0,
-          shok:  comp.includes('шоколад')   ? 1 : 0,
-          moroz: comp.includes('мороженое') ? 1 : 0,
-        };
-      });
+    // Уникальные названия по col A — состав берём из первой встречи названия
+    const _drinkMap = {};
+    napRaw.slice(1).filter(r => r[0]).forEach(r => {
+      const name = String(r[0]).trim();
+      if (_drinkMap[name]) return; // уже есть — пропускаем
+      const comp = String(r[3] || '').toLowerCase(); // col D = Что входит
+      _drinkMap[name] = {
+        name,
+        mol:   comp.includes('молоко')    ? 1 : 0,
+        vis:   comp.includes('виски')     ? 1 : 0,
+        shok:  comp.includes('шоколад')   ? 1 : 0,
+        moroz: comp.includes('мороженое') ? 1 : 0,
+      };
+    });
+    window._drinkOptions = Object.values(_drinkMap);
 
     // ── Модели аппаратов из Справ.нап. col E (E2:E38) ────────────────────
     // Берём col E (индекс 4), фильтруем пустые и дубли
@@ -1925,7 +1928,7 @@ async function submitNewClient(){
       const ne=document.getElementById(`nd-name-${i}`);if(!ne)continue;
       const dn=ne.value.trim();if(!dn)continue;
       // col O = порядковый номер напитка (для сортировки в Справ. расх. кофе)
-      drs.push([name,dn,mid,today,'',v(`nd-size-${i}`),v(`nd-mol-${i}`),v(`nd-vis-${i}`),v(`nd-shok-${i}`),drOrder++]);
+      drs.push([name,dn,mid,today,'',v(`nd-size-${i}`),'',v(`nd-mol-${i}`),v(`nd-vis-${i}`),v(`nd-shok-${i}`),v(`nd-moroz-${i}`),'','','',drOrder++]);
     }
     if(drs.length) await scriptPost({action:'addDrinks',rows:drs});
     showToast(`✓ Клиент "${name}" создан!`);
