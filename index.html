@@ -404,10 +404,8 @@ body{font-family:var(--font-body);background:var(--bg);color:var(--text);min-hei
     <div class="section-title" style="margin-top:0">Основные данные</div>
     <div class="input-grid">
       <div class="input-group">
-        <label>Дата (если задним числом)</label>
-        <input type="text" id="nc-date" placeholder="ДД.ММ.ГГГГ" maxlength="10"
-          oninput="this.value=this.value.replace(/[^0-9.]/g,'')">
-        <div class="unit">оставьте пустым — будет сегодня</div>
+        <label>Дата установки</label>
+        <input type="date" id="nc-date">
       </div>
       <div class="input-group full">
         <label>Название ТТ</label>
@@ -1922,9 +1920,12 @@ async function submitNewClient(){
     const today=(()=>{const d=new Date();const p=n=>String(n).padStart(2,'0');return`${p(d.getDate())}.${p(d.getMonth()+1)}.${d.getFullYear()}`;})();
     // cr: A=ТТ B=НазвКл C=ТипТТ D=Адрес E=Контакт F=ДопИнв K=Активен L=ДеньВизита M=ТП
     // G:J и N:V — формулы, не передаём (скрипт пишет только нужные колонки)
-    const ncDate = v('nc-date') || today;
+    const _ncDateRaw = document.getElementById('nc-date')?.value || '';
+    const ncDate = _ncDateRaw
+      ? (d => `${d[2]}.${d[1]}.${d[0]}`)((_ncDateRaw).split('-'))
+      : today;
     const cr=[name,name,v('nc-type'),v('nc-address'),v('nc-contact'),v('nc-extra'),'Да',v('nc-day'),CFG.name];
-    const er=[mid,name,v('nc-model'),ncDate,'','активна',v('nc-koef')||0.01,v('nc-eq-service')];
+    const er=[mid,name,v('nc-model'),ncDate,'','активна',v('nc-koef')||0.01,v('nc-note')];
     const drs=[];
     let drOrder=1;
     for(let i=0;i<drinkRowCount;i++){
@@ -1966,7 +1967,12 @@ function switchTab(tab, btn) {
   document.getElementById('page-'+tab).classList.add('active');
   btn.classList.add('active');
   if(tab==='history') renderHistory();
-  if(tab==='addclient'){document.getElementById('nc-drinks-list').innerHTML='';drinkRowCount=0;addDrinkRow();}
+  if(tab==='addclient'){
+    document.getElementById('nc-drinks-list').innerHTML='';drinkRowCount=0;addDrinkRow();
+    // Автозаполнение сегодняшней даты
+    const _nd=document.getElementById('nc-date');
+    if(_nd&&!_nd.value){const _n=new Date();const _p=n=>String(n).padStart(2,'0');_nd.value=`${_n.getFullYear()}-${_p(_n.getMonth()+1)}-${_p(_n.getDate())}`;}
+  }
 }
 
 // ══ TOAST ══════════════════════════════════════════════════════════════════
