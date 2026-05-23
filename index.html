@@ -403,6 +403,12 @@ body{font-family:var(--font-body);background:var(--bg);color:var(--text);min-hei
     <!-- ОСНОВНЫЕ ДАННЫЕ -->
     <div class="section-title" style="margin-top:0">Основные данные</div>
     <div class="input-grid">
+      <div class="input-group">
+        <label>Дата (если задним числом)</label>
+        <input type="text" id="nc-date" placeholder="ДД.ММ.ГГГГ" maxlength="10"
+          oninput="this.value=this.value.replace(/[^0-9.]/g,'')">
+        <div class="unit">оставьте пустым — будет сегодня</div>
+      </div>
       <div class="input-group full">
         <label>Название ТТ</label>
         <input type="text" id="nc-name" placeholder="Кофейня Аромат">
@@ -474,6 +480,9 @@ body{font-family:var(--font-body);background:var(--bg);color:var(--text);min-hei
 
     <!-- СЧЁТЧИКИ НА МОМЕНТ УСТАНОВКИ -->
     <div class="section-title" style="margin-top:20px">Счётчики на момент установки</div>
+    <div style="font-size:12px;color:var(--muted);margin-bottom:12px;line-height:1.5">
+      Заполняется только если сегодня не планируется загрузка клиента товаром.
+    </div>
     <div class="input-grid">
       <div class="input-group">
         <label>Инженерный счётчик</label>
@@ -1785,17 +1794,10 @@ async function submitChange() {
 // ══ ДОБАВИТЬ КЛИЕНТА ════════════════════════════════════════════════════════
 let drinkRowCount=0;
 // Список напитков — загружается из "Справ.нап.", обновляется динамически
-const DRINK_OPTIONS_DEFAULT = [
-  'Эспрессо','Эспрессо+мол','Эспрессо XXL',
-  'Американо','Американо+мол','Американо XXL',
-  'Капучино','Латте','Латте +Виски','Латте  + шоколад','Латте + мороженое',
-  'Виски','Виски+мол','Шоколад','Шоколад+мол',
-  'Мороженное','Мороженное+мол','Мокачино','Флет вайт','Вода','другой...'
-];
 function getDrinkOptions() {
   const opts = window._drinkOptions;
   if (opts && opts.length) return opts.map(d=>d.name).concat(['другой...']);
-  return DRINK_OPTIONS_DEFAULT;
+  return ['другой...']; // данные ещё не загружены
 }
 
 // Состав напитков из Справ.нап.: name → {mol, vis, shok, moroz}
@@ -1918,21 +1920,39 @@ async function submitNewClient(){
   btn.disabled=true; document.getElementById('nc-spinner').style.display='block'; document.getElementById('nc-label').textContent='Создаём...';
   try{
     const today=(()=>{const d=new Date();const p=n=>String(n).padStart(2,'0');return`${p(d.getDate())}.${p(d.getMonth()+1)}.${d.getFullYear()}`;})();
-    const cr=[name,name,v('nc-type'),v('nc-address'),v('nc-contact'),v('nc-extra'),'','','','','Да',v('nc-day'),CFG.name,v('nc-koef')||0.01,v('nc-p-classic'),v('nc-p-rosso'),v('nc-p-blu'),v('nc-p-arabica'),v('nc-p-toping'),v('nc-p-viski'),v('nc-p-krem'),v('nc-p-shok')];
-    await scriptPost({action:'addClient',row:cr});
-    const er=[mid,name,v('nc-model'),today,'','активна',v('nc-koef')||0.01,v('nc-eq-service')];
-    await scriptPost({action:'addEquipment',row:er});
+    // cr: A=ТТ B=НазвКл C=ТипТТ D=Адрес E=Контакт F=ДопИнв K=Активен L=ДеньВизита M=ТП
+    // G:J и N:V — формулы, не передаём (скрипт пишет только нужные колонки)
+    const ncDate = v('nc-date') || today;
+    const cr=[name,name,v('nc-type'),v('nc-address'),v('nc-contact'),v('nc-extra'),'Да',v('nc-day'),CFG.name];
+    const er=[mid,name,v('nc-model'),ncDate,'','активна',v('nc-koef')||0.01,v('nc-eq-service')];
     const drs=[];
     let drOrder=1;
     for(let i=0;i<drinkRowCount;i++){
-      const ne=document.getElementById(`nd-name-${i}`);if(!ne)continue;
-      const dn=ne.value.trim();if(!dn)continue;
+      // Проверяем что строка существует в DOM (не была удалена кнопкой ×)
+      const row=document.getElementById(`drink-row-${i}`);if(!row)continue;
+      // Берём название: из select или из ручного поля
+      const sel=document.getElementById(`nd-sel-${i}`);
+      const ne=document.getElementById(`nd-name-${i}`);
+      const dn=(sel&&sel.value&&sel.value!=='другой...')?sel.value.trim():(ne?ne.value.trim():'');
+      if(!dn)continue;
       // col O = порядковый номер напитка (для сортировки в Справ. расх. кофе)
-      drs.push([name,dn,mid,today,'',v(`nd-size-${i}`),'',v(`nd-mol-${i}`),v(`nd-vis-${i}`),v(`nd-shok-${i}`),v(`nd-moroz-${i}`),'','','',drOrder++]);
+      drs.push([name,dn,mid,ncDate,'',v(`nd-size-${i}`),'',v(`nd-mol-${i}`),v(`nd-vis-${i}`),v(`nd-shok-${i}`),v(`nd-moroz-${i}`),'','','',drOrder++]);
     }
-    if(drs.length) await scriptPost({action:'addDrinks',rows:drs});
+    // Все записи идут параллельно — пишут в разные листы, не зависят друг от друга
+    const ncPromises = [
+      scriptPost({action:'addClient',    row:cr}),
+      scriptPost({action:'addEquipment', row:er}),
+    ];
+    if(drs.length) ncPromises.push(scriptPost({action:'addDrinks', rows:drs}));
+    // Счётчики на момент установки → Общие счётчики (только если заполнены)
+    const ncGen = document.getElementById('nc-gen-counter')?.value;
+    const ncEng = document.getElementById('nc-eng-counter')?.value;
+    if(ncGen || ncEng) {
+      ncPromises.push(scriptPost({action:'addGenCounters', row:[name, mid, ncDate, ncGen||'', ncEng||'']}));
+    }
+    await Promise.all(ncPromises);
     showToast(`✓ Клиент "${name}" создан!`);
-    ['nc-name','nc-address','nc-contact','nc-type','nc-day','nc-bonus','nc-otsr','nc-extra','nc-service','nc-machine-id','nc-model','nc-serial','nc-koef','nc-eq-service','nc-p-classic','nc-p-rosso','nc-p-blu','nc-p-arabica','nc-p-toping','nc-p-viski','nc-p-krem','nc-p-shok'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+    ['nc-date','nc-name','nc-address','nc-contact','nc-type','nc-day','nc-bonus','nc-otsr','nc-extra','nc-service','nc-machine-id','nc-model','nc-serial','nc-koef','nc-eq-service','nc-gen-counter','nc-eng-counter'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
     document.getElementById('nc-drinks-list').innerHTML=''; drinkRowCount=0;
     await fetchAllData();
   }catch(e){showToast('Ошибка: '+e.message,true);}
