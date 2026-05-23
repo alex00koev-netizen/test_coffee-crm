@@ -838,7 +838,17 @@ async function fetchAllData() {
     // ── Справочник напитки (для выпадающего при создании клиента) ────────
     setStatus('Загружаем справочник напитков...'); const napRaw = await safeGet('Справ.нап.');
     window._drinkOptions = napRaw.slice(1).filter(r => r[0])
-      .map(r => ({ name: String(r[0]).trim(), size: r[1] || '' }));
+      .map(r => {
+        const comp = String(r[3] || '').toLowerCase(); // col D = Что входит
+        return {
+          name:  String(r[0]).trim(),
+          size:  r[1] || '',
+          mol:   comp.includes('молоко')    ? 1 : 0,
+          vis:   comp.includes('виски')     ? 1 : 0,
+          shok:  comp.includes('шоколад')   ? 1 : 0,
+          moroz: comp.includes('мороженое') ? 1 : 0,
+        };
+      });
 
     // ── Модели аппаратов из Справ.нап. col E (E2:E38) ────────────────────
     // Берём col E (индекс 4), фильтруем пустые и дубли
@@ -1785,12 +1795,33 @@ function getDrinkOptions() {
   return DRINK_OPTIONS_DEFAULT;
 }
 
+// Состав напитков из Справ.нап.: name → {mol, vis, shok, moroz}
+// Заполняется при загрузке из napRaw col A,B,C,D,E,F,...
+// Структура Справ.нап.: A=Напиток B=? C=? D=? E=Модель F=Молоко? ...
+// Для скрытия ненужных норм используем _drinkComposition
+function _getDrinkComposition(drinkName) {
+  const opts = window._drinkOptions || [];
+  const d = opts.find(o => o.name === drinkName);
+  return d || null;
+}
+
 function addDrinkRow(){
   const i = drinkRowCount++;
+  // Убираем уже выбранные напитки из списка (без дублей)
+  const usedNames = [];
+  for (let j = 0; j < i; j++) {
+    const s = document.getElementById('nd-sel-'+j);
+    if (s && s.value && s.value !== 'другой...') usedNames.push(s.value);
+    const n = document.getElementById('nd-name-'+j);
+    if (n && n.value.trim()) usedNames.push(n.value.trim());
+  }
+  const allOpts = getDrinkOptions();
+  const availOpts = allOpts.filter(o => o === 'другой...' || !usedNames.includes(o));
+  const opts = availOpts.map(o => '<option>'+o+'</option>').join('');
+
   const div = document.createElement('div');
   div.id = 'drink-row-'+i;
   div.style.cssText = 'background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:14px;margin-bottom:8px';
-  const opts = getDrinkOptions().map(o => '<option>'+o+'</option>').join('');
   div.innerHTML =
     '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">' +
       '<span style="font-size:13px;font-weight:500;color:var(--muted)">Напиток '+(i+1)+'</span>' +
@@ -1807,26 +1838,60 @@ function addDrinkRow(){
         '<label>Введите название вручную</label>' +
         '<input type="text" id="nd-name-'+i+'" placeholder="Название напитка">' +
       '</div>' +
-      '<div class="input-group"><label>Стакан мл</label><input inputmode="decimal" type="number" id="nd-size-'+i+'" placeholder="340"></div>' +
-      '<div class="input-group"><label>Молоко кг</label><input inputmode="decimal" type="number" id="nd-mol-'+i+'" step="0.001" placeholder="0.038"></div>' +
-      '<div class="input-group"><label>Виски кг</label><input inputmode="decimal" type="number" id="nd-vis-'+i+'" step="0.001" placeholder=""></div>' +
-      '<div class="input-group"><label>Шоколад кг</label><input inputmode="decimal" type="number" id="nd-shok-'+i+'" step="0.001" placeholder=""></div>' +
-      '<div class="input-group"><label>Мороженое кг</label><input inputmode="decimal" type="number" id="nd-moroz-'+i+'" step="0.001" placeholder=""></div>' +
+      '<div class="input-group">' +
+        '<label>Стакан мл</label>' +
+        '<select id="nd-size-'+i+'" style="width:100%;background:none;border:none;outline:none;color:var(--text);font-family:var(--font-body);font-size:15px;font-weight:600;padding:0">' +
+          '<option value="">—</option><option>110</option><option>250</option><option>340</option><option>500</option>' +
+        '</select>' +
+      '</div>' +
+      '<div class="input-group" id="nd-mol-wrap-'+i+'"><label>Молоко кг</label><input inputmode="decimal" type="number" id="nd-mol-'+i+'" step="0.001" placeholder="0.038"></div>' +
+      '<div class="input-group" id="nd-vis-wrap-'+i+'"><label>Виски кг</label><input inputmode="decimal" type="number" id="nd-vis-'+i+'" step="0.001" placeholder=""></div>' +
+      '<div class="input-group" id="nd-shok-wrap-'+i+'"><label>Шоколад кг</label><input inputmode="decimal" type="number" id="nd-shok-'+i+'" step="0.001" placeholder=""></div>' +
+      '<div class="input-group" id="nd-moroz-wrap-'+i+'"><label>Мороженое кг</label><input inputmode="decimal" type="number" id="nd-moroz-'+i+'" step="0.001" placeholder=""></div>' +
     '</div>';
   document.getElementById('nc-drinks-list').appendChild(div);
 }
 
 function onDrinkSelect(i) {
-  const sel = document.getElementById('nd-sel-'+i);
+  const sel  = document.getElementById('nd-sel-'+i);
   const wrap = document.getElementById('nd-manual-wrap-'+i);
-  if (sel.value === 'другой...') {
+  const name = sel.value;
+
+  if (name === 'другой...') {
     wrap.style.display = '';
-    document.getElementById('nd-name-'+i) && (document.getElementById('nd-name-'+i).value = '');
+    const nameEl = document.getElementById('nd-name-'+i);
+    if (nameEl) nameEl.value = '';
+    // Показываем все нормы для ручного ввода
+    ['mol','vis','shok','moroz'].forEach(f => {
+      const w = document.getElementById('nd-'+f+'-wrap-'+i);
+      if (w) w.style.display = '';
+    });
   } else {
     wrap.style.display = 'none';
-    // Если поле nd-name-i существует — синхронизируем
     const nameEl = document.getElementById('nd-name-'+i);
-    if (nameEl) nameEl.value = sel.value;
+    if (nameEl) nameEl.value = name;
+
+    // Определяем состав напитка из справочника и скрываем ненужные нормы
+    // col D: пустая = чистый кофе, скрыть все нормы
+    // col D: содержит "молоко/виски/шоколад/мороженое" = показать соответствующее поле
+    const comp = _getDrinkComposition(name);
+    const fields = ['mol','vis','shok','moroz'];
+    fields.forEach(f => {
+      const w = document.getElementById('nd-'+f+'-wrap-'+i);
+      if (!w) return;
+      if (!comp) {
+        // Нет в справочнике — показываем все поля
+        w.style.display = '';
+      } else {
+        // Показываем только если компонент есть в составе (1), иначе скрываем
+        w.style.display = comp[f] ? '' : 'none';
+        // Очищаем скрытые поля
+        if (!comp[f]) {
+          const inp = document.getElementById('nd-'+f+'-'+i);
+          if (inp) inp.value = '';
+        }
+      }
+    });
   }
 }
 
@@ -1850,9 +1915,9 @@ async function submitNewClient(){
   btn.disabled=true; document.getElementById('nc-spinner').style.display='block'; document.getElementById('nc-label').textContent='Создаём...';
   try{
     const today=(()=>{const d=new Date();const p=n=>String(n).padStart(2,'0');return`${p(d.getDate())}.${p(d.getMonth()+1)}.${d.getFullYear()}`;})();
-    const cr=[name,name,v('nc-type'),v('nc-address'),v('nc-contact'),v('nc-bonus'),v('nc-model'),v('nc-extra'),v('nc-service'),v('nc-otsr'),'Да',v('nc-day'),CFG.name,v('nc-koef')||0.01,v('nc-p-classic'),v('nc-p-rosso'),v('nc-p-blu'),v('nc-p-arabica'),v('nc-p-toping'),v('nc-p-viski'),v('nc-p-krem'),v('nc-p-shok')];
+    const cr=[name,name,v('nc-type'),v('nc-address'),v('nc-contact'),v('nc-extra'),'','','','','Да',v('nc-day'),CFG.name,v('nc-koef')||0.01,v('nc-p-classic'),v('nc-p-rosso'),v('nc-p-blu'),v('nc-p-arabica'),v('nc-p-toping'),v('nc-p-viski'),v('nc-p-krem'),v('nc-p-shok')];
     await scriptPost({action:'addClient',row:cr});
-    const er=[mid,name,v('nc-model'),v('nc-serial'),today,'','активна',v('nc-koef')||0.01,v('nc-eq-service')];
+    const er=[mid,name,v('nc-model'),today,'','активна',v('nc-koef')||0.01,v('nc-eq-service')];
     await scriptPost({action:'addEquipment',row:er});
     const drs=[];
     let drOrder=1;
