@@ -758,6 +758,10 @@ function applyRoleRestrictions() {
       }
     });
   }
+  // Явно скрываем фильтр торгового для не-админов
+  const _af = document.getElementById('admin-agent-filter');
+  if (_af) _af.style.display = 'none';
+
   // Агент: убрать вкладку Клиент (добавление нового клиента)
   if (isAgent()) {
     document.querySelectorAll('.nav-tab').forEach(el => {
