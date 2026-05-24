@@ -765,14 +765,14 @@ function applyRoleRestrictions() {
   // Агент: убрать вкладку Клиент (добавление нового клиента)
   if (isAgent()) {
     document.querySelectorAll('.nav-tab').forEach(el => {
-      if (el.textContent.trim() === 'КЛИЕНТ') el.style.display = 'none';
+      if (el.textContent.trim().toLowerCase() === 'клиент') el.style.display = 'none';
     });
   }
-  // Админ: только Дашборд, История, Изменения — убрать Визит и Клиент
+  // Админ: убрать Визит и Клиент
   if (isAdmin()) {
     document.querySelectorAll('.nav-tab').forEach(el => {
-      const txt = el.textContent.trim();
-      if (txt === 'ВИЗИТ' || txt === 'КЛИЕНТ') el.style.display = 'none';
+      const txt = el.textContent.trim().toLowerCase();
+      if (txt === 'визит' || txt === 'клиент') el.style.display = 'none';
     });
     // Показываем фильтр по торговому
     const agentFilter = document.getElementById('admin-agent-filter');
