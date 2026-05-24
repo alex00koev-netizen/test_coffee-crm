@@ -765,12 +765,7 @@ function applyRoleRestrictions() {
   const _af = document.getElementById('admin-agent-filter');
   if (_af) _af.style.display = 'none';
 
-  // Агент: убрать вкладку Клиент (добавление нового клиента)
-  if (isAgent()) {
-    document.querySelectorAll('.nav-tab').forEach(el => {
-      if (el.textContent.trim().toLowerCase() === 'клиент') el.style.display = 'none';
-    });
-  }
+  // Агент: вкладка Клиент остаётся — торговые создают новых клиентов
   // Админ: убрать Визит и Клиент
   if (isAdmin()) {
     document.querySelectorAll('.nav-tab').forEach(el => {
