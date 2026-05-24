@@ -738,6 +738,9 @@ async function scriptPost(payload, retries=2, timeoutMs=25000) {
 
 // ══ INIT ═══════════════════════════════════════════════════════════════════
 function applyRoleRestrictions() {
+  // Сначала сбрасываем все вкладки — чтобы при смене аккаунта не оставались скрытые
+  document.querySelectorAll('.nav-tab').forEach(el => el.style.display = '');
+
   // Техник: убрать вкладки Изменения и Клиент, скрыть заявку и прайс
   if (isTech()) {
     // Скрыть вкладки Изменения и Клиент
