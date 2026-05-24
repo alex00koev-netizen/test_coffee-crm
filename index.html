@@ -686,8 +686,8 @@ function fmtDate(val) {
 }
 
 // ══ API ════════════════════════════════════════════════════════════════════
-async function scriptGet(sheet, months) {
-  let url = CFG.scriptUrl + '?sheet=' + encodeURIComponent(sheet);
+async function scriptGet(sheet, months, baseUrl) {
+  let url = (baseUrl || CFG.scriptUrl) + '?sheet=' + encodeURIComponent(sheet);
   if (months) url += '&months=' + months;
   let r;
   try {
@@ -706,8 +706,8 @@ async function scriptGet(sheet, months) {
 }
 
 // Безопасный GET — при ошибке возвращает [] и не прерывает загрузку
-async function safeGet(sheet, months) {
-  try { return await scriptGet(sheet, months); }
+async function safeGet(sheet, months, baseUrl) {
+  try { return await scriptGet(sheet, months, baseUrl); }
   catch(e) { console.warn('safeGet:', sheet, e.message); return []; }
 }
 async function scriptPost(payload, retries=2, timeoutMs=25000) {
@@ -837,20 +837,16 @@ function onAdminAgentChange() {
 
 // Вспомогательная функция — загрузить данные из одного скрипта
 async function fetchFromScript(scriptUrl) {
-  // Временно подменяем CFG.scriptUrl для scriptGet
-  const origUrl = CFG.scriptUrl;
-  CFG.scriptUrl = scriptUrl;
-  try {
-    const raw   = await scriptGet('Справ. Клиенты');
-    const spRaw = await scriptGet('Справ. расх. кофе');
-    const visRaw = await scriptGet('Визиты', 6);
-    const eqRaw  = await scriptGet('Оборудование');
-    const scRaw  = await scriptGet('Счетчики расхода');
-    const gcRaw  = await safeGet('Общие счётчики', 6);
-    return { raw, spRaw, visRaw, eqRaw, scRaw, gcRaw, scriptUrl };
-  } finally {
-    CFG.scriptUrl = origUrl;
-  }
+  // Передаём scriptUrl напрямую — не трогаем глобальный CFG.scriptUrl
+  // Это позволяет безопасно запускать несколько fetchFromScript параллельно
+  const [raw, spRaw, visRaw, eqRaw, gcRaw] = await Promise.all([
+    scriptGet('Справ. Клиенты',    undefined, scriptUrl),
+    scriptGet('Справ. расх. кофе', undefined, scriptUrl),
+    scriptGet('Визиты',            6,         scriptUrl),
+    scriptGet('Оборудование',      undefined, scriptUrl),
+    safeGet('Общие счётчики',      6,         scriptUrl),
+  ]);
+  return { raw, spRaw, visRaw, eqRaw, gcRaw, scriptUrl };
 }
 
 async function fetchAllData() {
@@ -983,9 +979,15 @@ async function fetchAllData() {
     // 6=КоефКофе, 7=Примечание
     setStatus('Загружаем оборудование...'); const eqRaw = await scriptGet('Оборудование');
     equipmentData = {};
-    eqRaw.slice(3).filter(r => r[0] && r[1]).forEach(r => {
+    // Только активное оборудование (E=ДатаСнят пустая, F=Статус='активна')
+    eqRaw.slice(3).filter(r => r[0] && r[1]
+      && (String(r[4]||'').trim() === '')          // E=ДатаСнят пустая
+      && String(r[5]||'').trim().toLowerCase() === 'активна' // F=Статус
+    ).forEach(r => {
       const cl = String(r[1]).trim();
       if (!equipmentData[cl]) equipmentData[cl] = [];
+      // Защита от дублей по серийному номеру
+      if (equipmentData[cl].find(e => e.serial === String(r[0]||'').trim())) return;
       equipmentData[cl].push({
         id:      String(r[0] || ''),
         serial:  String(r[0] || ''),
@@ -1047,9 +1049,13 @@ async function fetchAllData() {
         const addVisits = d.visRaw.slice(3).filter(r=>r[0]).map(r=>{const rr=[...r];rr[1]=fmtDate(rr[1]);return rr;});
         visitsData = visitsData.concat(addVisits).sort((a,b)=>(b[1]||'').localeCompare(a[1]||'')).slice(0,200);
         // Мёржим оборудование
-        d.eqRaw.slice(3).filter(r=>r[0]&&r[1]).forEach(r=>{
+        d.eqRaw.slice(3).filter(r=>r[0]&&r[1]
+          && String(r[4]||'').trim()===''
+          && String(r[5]||'').trim().toLowerCase()==='активна'
+        ).forEach(r=>{
           const cl=String(r[1]).trim();
           if(!equipmentData[cl])equipmentData[cl]=[];
+          if(equipmentData[cl].find(e=>e.serial===String(r[0]||'').trim())) return;
           equipmentData[cl].push({id:String(r[0]||''),serial:String(r[0]||''),model:String(r[2]||''),
             dateOn:String(r[3]||''),dateOff:String(r[4]||''),status:String(r[5]||''),koef:r[6]||0.01,note:String(r[7]||'')});
         });
