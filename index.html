@@ -137,6 +137,7 @@ body{font-family:var(--font-body);background:var(--bg);color:var(--text);min-hei
 .toast{position:fixed;bottom:calc(var(--safe-bot) + 80px);left:50%;transform:translateX(-50%) translateY(20px);background:var(--green);color:#000;font-family:var(--font-head);font-size:12px;font-weight:700;padding:10px 20px;border-radius:30px;opacity:0;transition:all .3s;pointer-events:none;z-index:999;white-space:nowrap}
 .toast.error{background:var(--danger);color:#fff}
 .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+.prev-hint{font-size:11px;color:var(--accent);margin-top:3px;min-height:14px;font-weight:500;}
 .summary-modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:9999;overflow-y:auto;padding:16px;}
 .summary-modal.open{display:flex;align-items:flex-start;justify-content:center;}
 .summary-box{background:#fff;color:#111;border-radius:16px;padding:20px;max-width:480px;width:100%;font-family:var(--font-body);}
@@ -178,6 +179,7 @@ body{font-family:var(--font-body);background:var(--bg);color:var(--text);min-hei
           <option value="Житнюк">Житнюк Валентин</option>
           <option value="Бойко">Бойко Иван</option>
           <option value="Яковлев">Яковлев Саша</option>
+          <option value="Заяц">Заяц Сергей</option>
         </optgroup>
         <optgroup label="Техники">
           <option value="Кухарь">Кухарь Сергей</option>
@@ -240,6 +242,9 @@ body{font-family:var(--font-body);background:var(--bg);color:var(--text);min-hei
     <button class="nav-tab" onclick="switchTab('addclient',this)">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 00-4-4H6a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" y1="8" x2="19" y2="14"/><line x1="22" y1="11" x2="16" y2="11"/></svg>Клиент
     </button>
+    <button class="nav-tab" onclick="switchTab('invoice',this)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>Накладная
+    </button>
   </div>
 
   <!-- ══ ВИЗИТ ══ -->
@@ -276,6 +281,11 @@ body{font-family:var(--font-body);background:var(--bg);color:var(--text);min-hei
       <input type="date" id="visit-date">
       <div class="unit">по умолчанию — сегодня</div>
     </div>
+    <!-- УВЕДОМЛЕНИЕ ПО АППАРАТУ (col J листа Оборудование) -->
+    <div id="machine-alert" style="display:none;margin:10px 0;padding:14px 16px;background:#E8450A;border-radius:14px;border-left:5px solid #FF2D00;box-shadow:0 4px 16px rgba(232,69,10,.4)">
+      <div style="font-size:11px;font-weight:700;letter-spacing:.08em;color:rgba(255,255,255,.85);text-transform:uppercase;margin-bottom:6px">⚠️ Важное уведомление</div>
+      <div id="machine-alert-text" style="font-size:15px;font-weight:700;color:#fff;line-height:1.55"></div>
+    </div>
 
     <!-- Карточка клиента -->
     <div class="client-card" id="client-card">
@@ -303,20 +313,20 @@ body{font-family:var(--font-body);background:var(--bg);color:var(--text);min-hei
 
     <div class="section-title">Остатки у клиента</div>
     <div class="input-grid">
-      <div class="input-group"><label>Кофе</label><input inputmode="decimal" type="number" id="ost-kofe" step="0.001" min="0" placeholder="0.000" oninput="checkOstatok('ost-kofe',window._autoOst&&window._autoOst.kofe,'Кофе')"><div class="unit">кг</div></div>
-      <div class="input-group"><label>Молоко</label><input inputmode="decimal" type="number" id="ost-mol" step="0.001" min="0" placeholder="0.000" oninput="checkOstatok('ost-mol',window._autoOst&&window._autoOst.mol,'Молоко')"><div class="unit">кг</div></div>
-      <div class="input-group" id="ost-vis-wrap"><label>Виски</label><input inputmode="decimal" type="number" id="ost-vis" step="0.001" min="0" placeholder="0.000" oninput="checkOstatok('ost-vis',window._autoOst&&window._autoOst.vis,'Виски')"><div class="unit">кг</div></div>
-      <div class="input-group" id="ost-shok-wrap"><label>Шоколад</label><input inputmode="decimal" type="number" id="ost-shok" step="0.001" min="0" placeholder="0.000"><div class="unit">кг</div></div>
-      <div class="input-group" id="ost-moroz-wrap"><label>Мороженое</label><input inputmode="decimal" type="number" id="ost-moroz" step="0.001" min="0" placeholder="0.000"><div class="unit">кг</div></div>
+      <div class="input-group"><label>Кофе</label><input inputmode="decimal" type="number" id="ost-kofe" step="0.001" min="0" placeholder="0.000" oninput="checkOstatok('ost-kofe',window._autoOst&&window._autoOst.kofe,'Кофе')"><div class="unit">кг</div><div class="prev-hint" id="prev-ost-kofe"></div></div>
+      <div class="input-group"><label>Молоко</label><input inputmode="decimal" type="number" id="ost-mol" step="0.001" min="0" placeholder="0.000" oninput="checkOstatok('ost-mol',window._autoOst&&window._autoOst.mol,'Молоко')"><div class="unit">кг</div><div class="prev-hint" id="prev-ost-mol"></div></div>
+      <div class="input-group" id="ost-vis-wrap"><label>Виски</label><input inputmode="decimal" type="number" id="ost-vis" step="0.001" min="0" placeholder="0.000" oninput="checkOstatok('ost-vis',window._autoOst&&window._autoOst.vis,'Виски')"><div class="unit">кг</div><div class="prev-hint" id="prev-ost-vis"></div></div>
+      <div class="input-group" id="ost-shok-wrap"><label>Шоколад</label><input inputmode="decimal" type="number" id="ost-shok" step="0.001" min="0" placeholder="0.000"><div class="unit">кг</div><div class="prev-hint" id="prev-ost-shok"></div></div>
+      <div class="input-group" id="ost-moroz-wrap"><label>Мороженое</label><input inputmode="decimal" type="number" id="ost-moroz" step="0.001" min="0" placeholder="0.000"><div class="unit">кг</div><div class="prev-hint" id="prev-ost-moroz"></div></div>
     </div>
 
     <div class="section-title">Заявка</div>
     <div class="input-grid">
-      <div class="input-group"><label>Кофе</label><input inputmode="decimal" type="number" id="zay-kofe" step="0.1" min="0" placeholder="0.0"><div class="unit">кг</div></div>
-      <div class="input-group"><label>Молоко</label><input inputmode="decimal" type="number" id="zay-mol" step="0.1" min="0" placeholder="0.0"><div class="unit">кг</div></div>
-      <div class="input-group" id="zay-vis-wrap"><label>Виски</label><input inputmode="decimal" type="number" id="zay-vis" step="0.1" min="0" placeholder="0.0"><div class="unit">кг</div></div>
-      <div class="input-group" id="zay-shok-wrap"><label>Шоколад</label><input inputmode="decimal" type="number" id="zay-shok" step="0.1" min="0" placeholder="0.0"><div class="unit">кг</div></div>
-      <div class="input-group" id="zay-moroz-wrap"><label>Мороженое</label><input inputmode="decimal" type="number" id="zay-moroz" step="0.1" min="0" placeholder="0.0"><div class="unit">кг</div></div>
+      <div class="input-group"><label>Кофе</label><input inputmode="decimal" type="number" id="zay-kofe" step="0.1" min="0" placeholder="0.0"><div class="unit">кг</div><div class="prev-hint" id="prev-zay-kofe"></div></div>
+      <div class="input-group"><label>Молоко</label><input inputmode="decimal" type="number" id="zay-mol" step="0.1" min="0" placeholder="0.0"><div class="unit">кг</div><div class="prev-hint" id="prev-zay-mol"></div></div>
+      <div class="input-group" id="zay-vis-wrap"><label>Виски</label><input inputmode="decimal" type="number" id="zay-vis" step="0.1" min="0" placeholder="0.0"><div class="unit">кг</div><div class="prev-hint" id="prev-zay-vis"></div></div>
+      <div class="input-group" id="zay-shok-wrap"><label>Шоколад</label><input inputmode="decimal" type="number" id="zay-shok" step="0.1" min="0" placeholder="0.0"><div class="unit">кг</div><div class="prev-hint" id="prev-zay-shok"></div></div>
+      <div class="input-group" id="zay-moroz-wrap"><label>Мороженое</label><input inputmode="decimal" type="number" id="zay-moroz" step="0.1" min="0" placeholder="0.0"><div class="unit">кг</div><div class="prev-hint" id="prev-zay-moroz"></div></div>
     </div>
 
     <div class="section-title">Счётчики аппарата</div>
@@ -553,11 +563,18 @@ body{font-family:var(--font-body);background:var(--bg);color:var(--text);min-hei
         <input inputmode="numeric" type="number" id="nc-gen-counter" step="1" min="0" placeholder="25000">
         <div class="unit">порции</div>
       </div>
-      <div class="input-group">
-        <label>Промежуточный счётчик</label>
-        <input inputmode="numeric" type="number" id="nc-eng-counter" step="1" min="0" placeholder="100">
-        <div class="unit">порции</div>
-      </div>
+    </div>
+
+    <!-- ПЕРВАЯ ОТГРУЗКА (уходит в Визиты как первый визит) -->
+    <div class="section-title" style="margin-top:20px">Первая отгрузка
+      <span style="font-size:10px;color:var(--muted);font-weight:400;margin-left:8px">уйдёт в визиты</span>
+    </div>
+    <div class="input-grid">
+      <div class="input-group"><label>Кофе</label><input inputmode="decimal" type="number" id="nc-zay-kofe" step="0.1" min="0" placeholder="0.0"><div class="unit">кг</div></div>
+      <div class="input-group"><label>Молоко</label><input inputmode="decimal" type="number" id="nc-zay-mol" step="0.1" min="0" placeholder="0.0"><div class="unit">кг</div></div>
+      <div class="input-group"><label>Виски</label><input inputmode="decimal" type="number" id="nc-zay-vis" step="0.1" min="0" placeholder="0.0"><div class="unit">кг</div></div>
+      <div class="input-group"><label>Шоколад</label><input inputmode="decimal" type="number" id="nc-zay-shok" step="0.1" min="0" placeholder="0.0"><div class="unit">кг</div></div>
+      <div class="input-group"><label>Мороженое</label><input inputmode="decimal" type="number" id="nc-zay-moroz" step="0.1" min="0" placeholder="0.0"><div class="unit">кг</div></div>
     </div>
 
     <!-- ПРИМЕЧАНИЕ -->
@@ -567,6 +584,52 @@ body{font-family:var(--font-body);background:var(--bg);color:var(--text);min-hei
     <button class="btn-submit" onclick="submitNewClient()" style="margin-top:16px">
       <div class="spinner" id="nc-spinner"></div>
       <span id="nc-label">Создать клиента</span>
+    </button>
+  </div>
+
+  <!-- ══ НАКЛАДНАЯ ══ -->
+  <div id="page-invoice" class="page">
+
+    <!-- КЛИЕНТ -->
+    <div class="section-title" style="margin-top:0">Клиент</div>
+    <div class="input-grid">
+      <div class="input-group full">
+        <label>Выберите клиента или введите вручную</label>
+        <select id="inv-client-select" onchange="onInvoiceClientSelect()" style="width:100%;background:none;border:none;outline:none;color:var(--text);font-family:var(--font-body);font-size:15px;font-weight:600;padding:0">
+          <option value="">— выбрать или ввести —</option>
+          <option value="другой...">другой клиент (ввести вручную)</option>
+        </select>
+      </div>
+      <div class="input-group full" id="inv-client-manual-wrap" style="display:none">
+        <label>Название клиента</label>
+        <input type="text" id="inv-client-manual" placeholder="Название ТТ">
+      </div>
+    </div>
+
+    <!-- ПОЗИЦИИ -->
+    <div class="section-title" style="margin-top:20px">Позиции</div>
+    <div id="inv-items-list"></div>
+    <button onclick="addInvoiceItem()" style="width:100%;padding:11px;background:var(--bg3);border:1px dashed var(--border);border-radius:var(--radius);color:var(--muted);font-family:var(--font-body);font-size:13px;cursor:pointer;margin-top:8px">
+      + Добавить позицию
+    </button>
+
+    <!-- ИТОГО -->
+    <div class="client-card" style="margin-top:16px">
+      <div class="cc-row"><div class="cc-label">Сумма к оплате</div><div class="cc-val" id="inv-total" style="font-size:18px;color:var(--accent)">0.00</div></div>
+    </div>
+
+    <!-- ОПЛАТА -->
+    <div class="section-title" style="margin-top:20px">Оплата</div>
+    <div class="input-grid">
+      <div class="input-group"><label>Факт. платёж</label><input inputmode="decimal" type="number" id="inv-fact" step="0.01" min="0" placeholder="0.00"><div class="unit">грн</div></div>
+      <div class="input-group"><label>Отсрочка платежа</label><input inputmode="decimal" type="number" id="inv-otsr" step="0.01" min="0" placeholder="0.00"><div class="unit">грн</div></div>
+      <div class="input-group"><label>Сервис</label><input inputmode="decimal" type="number" id="inv-service" step="0.01" min="0" placeholder="0.00"><div class="unit">грн</div></div>
+      <div class="input-group"><label>Оплата на карту</label><input inputmode="decimal" type="number" id="inv-card" step="0.01" min="0" placeholder="0.00"><div class="unit">грн</div></div>
+    </div>
+
+    <button class="btn-submit" onclick="submitInvoice()" style="margin-top:16px">
+      <div class="spinner" id="inv-spinner"></div>
+      <span id="inv-label">Сохранить</span>
     </button>
   </div>
 </div>
@@ -588,6 +651,7 @@ const USERS = {
   'Житнюк':    { pass: 'zhitnuk1',  role: 'agent', label: 'Житнюк Валентин',     tp: 'Житнюк'  },
   'Бойко':      { pass: 'boiko1',    role: 'agent', label: 'Бойко Иван',          tp: 'Бойко'   },
   'Яковлев':    { pass: 'yakovlev1', role: 'agent', label: 'Яковлев Саша',        tp: 'Яковлев' },
+  'Заяц':       { pass: '258',        role: 'agent', label: 'Заяц Сергей',          tp: 'Заяц'    },
   // Техники — все клиенты, без цен и завоза
   'Кухарь':     { pass: 'kuhar1',    role: 'tech',  label: 'Кухарь Сергей',       tp: null },
   'Зинчук':     { pass: 'zinchuk1',  role: 'tech',  label: 'Зинчук Станислав',    tp: null },
@@ -888,14 +952,15 @@ function onAdminAgentChange() {
 async function fetchFromScript(scriptUrl) {
   // Передаём scriptUrl напрямую — не трогаем глобальный CFG.scriptUrl
   // Это позволяет безопасно запускать несколько fetchFromScript параллельно
-  const [raw, spRaw, visRaw, eqRaw, gcRaw] = await Promise.all([
+  const [raw, spRaw, visRaw, eqRaw, gcRaw, scRaw] = await Promise.all([
     scriptGet('Справ. Клиенты',    undefined, scriptUrl),
     scriptGet('Справ. расх. кофе', undefined, scriptUrl),
-    scriptGet('Визиты',            6,         scriptUrl),
+    scriptGet('Визиты',            undefined, scriptUrl),
     scriptGet('Оборудование',      undefined, scriptUrl),
     safeGet('Общие счётчики',      6,         scriptUrl),
+    safeGet('Счетчики расхода',    undefined, scriptUrl),
   ]);
-  return { raw, spRaw, visRaw, eqRaw, gcRaw, scriptUrl };
+  return { raw, spRaw, visRaw, eqRaw, gcRaw, scRaw, scriptUrl };
 }
 
 async function fetchAllData() {
@@ -996,6 +1061,17 @@ async function fetchAllData() {
     });
     window._drinkOptions = Object.values(_drinkMap);
 
+    // ── Прайс (для накладной) — лист "Прайс" R2:R50=номенклатура T=ед.изм U=цена ──
+    setStatus('Загружаем прайс...');
+    const priceRaw = await safeGet('Прайс');
+    // priceRaw — это весь лист начиная с row1. R=индекс17, T=индекс19, U=индекс20
+    window._priceList = priceRaw.slice(1).filter(r => r[17] && String(r[17]).trim())
+      .map(r => ({
+        name: String(r[17]).trim(),
+        unit: String(r[19]||'').trim(),
+        price: r[20] != null && r[20] !== '' ? parseFloat(String(r[20]).replace(',','.')) : 0,
+      }));
+
     // ── Модели аппаратов из Справ.нап. col E (E2:E38) ────────────────────
     // Берём col E (индекс 4), фильтруем пустые и дубли
     const modelSel = document.getElementById('nc-model-select');
@@ -1016,12 +1092,13 @@ async function fetchAllData() {
     // 0=НазвТТ, 1=Дата, 2=ТП, 3=ОстКоф, 4=ОстМол, 5=ОстВис,
     // 6=ОстШок, 7=ОстМор, 8=ЗаяКоф, 9=ЗаяМол, 10=ЗаяВис,
     // 11=ЗаяШок, 12=ЗаяМор, ..., 23=Примечание
-    setStatus('Загружаем визиты...'); const visRaw = await scriptGet('Визиты', 6);
+    setStatus('Загружаем визиты...'); const visRaw = await scriptGet('Визиты');
+    const _sortKey = d => { const p=String(d||'').split('.'); return p.length===3?p[2]+p[1]+p[0]:'00000000'; }; // пустые даты → в конец
     visitsData = visRaw.slice(3).filter(r => r[0]).map(r => {
       const rr = [...r];
       rr[1] = fmtDate(rr[1]);  // Дата col1
       return rr;
-    }).reverse().slice(0, 100);
+    }).sort((a,b) => _sortKey(b[1]).localeCompare(_sortKey(a[1]))); // сортировка по дате новые→старые
 
     // ── Оборудование ─────────────────────────────────────────────────────
     // 0=Серийный№, 1=НазвТТ, 2=Модель, 3=ДатаУст, 4=ДатаСнят, 5=Статус,
@@ -1046,6 +1123,7 @@ async function fetchAllData() {
         status:  String(r[5] || ''),
         koef:    r[6] || 0.01,
         note:    String(r[7] || ''),
+        alert:   String(r[9] || ''), // col J = уведомление для торгового
       });
     });
     // Обогащаем clientsData из Оборудования
@@ -1096,17 +1174,20 @@ async function fetchAllData() {
         clientsData = clientsData.concat(addClients);
         // Мёржим визиты
         const addVisits = d.visRaw.slice(3).filter(r=>r[0]).map(r=>{const rr=[...r];rr[1]=fmtDate(rr[1]);return rr;});
-        visitsData = visitsData.concat(addVisits).sort((a,b)=>(b[1]||'').localeCompare(a[1]||'')).slice(0,200);
+        // Сортируем по дате правильно: DD.MM.YYYY → сравниваем как YYYY-MM-DD
+        const toSortKey = d => { const p=String(d||'').split('.'); return p.length===3?p[2]+p[1]+p[0]:'00000000'; };
+        visitsData = visitsData.concat(addVisits)
+          .sort((a,b) => _sortKey(b[1]).localeCompare(_sortKey(a[1]))); // без slice — все визиты
         // Мёржим оборудование
         d.eqRaw.slice(3).filter(r=>r[0]&&r[1]
           && String(r[4]||'').trim()===''
-          && String(r[5]||'').trim().toLowerCase()==='активна'
+          && ['активна','активен','active'].includes(String(r[5]||'').trim().toLowerCase())
         ).forEach(r=>{
           const cl=String(r[1]).trim();
           if(!equipmentData[cl])equipmentData[cl]=[];
           if(equipmentData[cl].find(e=>e.serial===String(r[0]||'').trim())) return;
           equipmentData[cl].push({id:String(r[0]||''),serial:String(r[0]||''),model:String(r[2]||''),
-            dateOn:String(r[3]||''),dateOff:String(r[4]||''),status:String(r[5]||''),koef:r[6]||0.01,note:String(r[7]||'')});
+            dateOn:String(r[3]||''),dateOff:String(r[4]||''),status:String(r[5]||''),koef:r[6]||0.01,note:String(r[7]||''),alert:String(r[9]||'')});
         });
         // Мёржим напитки
         d.spRaw.slice(3).filter(r=>r[0]&&r[1]&&!r[4]).forEach(r=>{
@@ -1118,6 +1199,30 @@ async function fetchAllData() {
               size:r[5]!=null?String(r[5]):'',mol:r[7]||null,vis:r[8]||null,shok:r[9]||null,moroz:r[10]||null,koef:r[6]||null});
           }
         });
+        // Мёржим счётчики расхода
+        if (d.scRaw) {
+          const addCounters = d.scRaw.slice(1).filter(r=>r[0]&&r[3]).map(r=>({
+            name:   String(r[0]||'').trim(),
+            serial: String(r[1]||'').trim(),
+            date:   fmtDate(r[2]),
+            drink:  String(r[3]||'').trim(),
+            size:   r[4]||0,
+            count:  r[5]||0,
+            sold:   r[6]||0,
+          }));
+          window._allCounters = (window._allCounters||[]).concat(addCounters);
+        }
+        // Мёржим общие счётчики
+        if (d.gcRaw) {
+          const addGenCounters = d.gcRaw.slice(1).filter(r=>r[0]&&r[2]).map(r=>({
+            name:   String(r[0]||'').trim(),
+            serial: String(r[1]||'').trim(),
+            date:   fmtDate(r[2]),
+            gen:    r[3]||0,
+            eng:    r[4]||0,
+          }));
+          window._allGenCounters = (window._allGenCounters||[]).concat(addGenCounters);
+        }
       });
 
       // Сохраняем полные данные для фильтра по торговому
@@ -1230,6 +1335,15 @@ function populateSelects() {
     sel.innerHTML = `<option value="">— выберите клиента —</option>` +
       list.map(c => `<option${c.name===cur?' selected':''}>${c.name}</option>`).join('');
   });
+
+  // Накладная — отдельный список с опцией "другой клиент"
+  const invSel = document.getElementById('inv-client-select');
+  if (invSel) {
+    const cur = invSel.value;
+    invSel.innerHTML = `<option value="">— выбрать или ввести —</option>` +
+      `<option value="другой...">другой клиент (ввести вручную)</option>` +
+      clientsData.map(c => `<option${c.name===cur?' selected':''}>${c.name}</option>`).join('');
+  }
 }
 
 // ══ ДЕНЬ НЕДЕЛИ — фильтр клиентов ══════════════════════════════════════════
@@ -1291,6 +1405,34 @@ function onClientChange() {
   if (machines.length === 1) machSel.value = machines[0].id;
 
   onMachineChange();
+  updatePrevHints();
+}
+
+function updatePrevHints() {
+  // Заполняем подсказки из последнего визита этого клиента
+  const name = document.getElementById('visit-client').value;
+  if (!name) return;
+  const prev = visitsData.filter(r => String(r[0]).trim() === name)[0] || null;
+  // r[4]=ост.кофе r[5]=ост.мол r[6]=ост.вис r[7]=ост.шок r[8]=ост.мор
+  // r[9]=зай.кофе r[10]=зай.мол r[11]=зай.вис r[12]=зай.шок r[13]=зай.мор
+  const fields = [
+    ['prev-ost-kofe',  prev?.[4]],
+    ['prev-ost-mol',   prev?.[5]],
+    ['prev-ost-vis',   prev?.[6]],
+    ['prev-ost-shok',  prev?.[7]],
+    ['prev-ost-moroz', prev?.[8]],
+    ['prev-zay-kofe',  prev?.[9]],
+    ['prev-zay-mol',   prev?.[10]],
+    ['prev-zay-vis',   prev?.[11]],
+    ['prev-zay-shok',  prev?.[12]],
+    ['prev-zay-moroz', prev?.[13]],
+  ];
+  fields.forEach(([id, val]) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    const v = (val !== undefined && val !== null && val !== '') ? String(val) : '';
+    el.textContent = v ? `прошлый: ${v} кг` : '';
+  });
 }
 
 function onMachineChange() {
@@ -1302,6 +1444,17 @@ function onMachineChange() {
   const machines = equipmentData[name] || [];
   const m = machId ? machines.find(x => x.id === machId) : machines.find(x => String(x.status||'').toLowerCase() === 'активна');
   document.getElementById('cc-equip').textContent = m ? `${m.id} — ${m.model}` : '—';
+
+  // Уведомление из col J листа Оборудование
+  const alertEl   = document.getElementById('machine-alert');
+  const alertText = document.getElementById('machine-alert-text');
+  const alertMsg  = m ? (m.alert || '').trim() : '';
+  if (alertMsg && alertEl && alertText) {
+    alertText.textContent = alertMsg;
+    alertEl.style.display = 'block';
+  } else if (alertEl) {
+    alertEl.style.display = 'none';
+  }
   // Сервис: приоритет — сервис аппарата, если нет — сервис клиента
   const svcEl  = document.getElementById('cc-service');
   const svcRow = document.getElementById('cc-service-row');
@@ -1900,7 +2053,7 @@ function renderHistory() {
   if (!visitsData.length) { cont.innerHTML='<div class="empty-state">Визитов пока нет</div>'; return; }
   // r[0]=ТТ r[1]=Дата r[2]=ТП r[3]=Примечание
   // r[4]=Ост.кофе r[5]=Ост.молоко r[6]=Ост.виски r[7]=Ост.шоколад r[8]=Ост.мороженое
-  cont.innerHTML = visitsData.slice(0,20).map(r => {
+  cont.innerHTML = visitsData.slice(0,100).map(r => {
     const osts = [
       {label:'Ост. кофе',   val: r[4], cls:'accent-orange'},
       {label:'Ост. молока', val: r[5], cls:''},
@@ -2085,7 +2238,7 @@ function addDrinkRow(){
       '<div class="input-group">' +
         '<label>Стакан мл</label>' +
         '<select id="nd-size-'+i+'" style="width:100%;background:none;border:none;outline:none;color:var(--text);font-family:var(--font-body);font-size:15px;font-weight:600;padding:0">' +
-          '<option value="">—</option><option>110</option><option>250</option><option>340</option><option>500</option>' +
+          '<option value="">—</option><option>110</option><option>175</option><option>250</option><option>340</option><option>500</option>' +
         '</select>' +
       '</div>' +
       '<div class="input-group" id="nd-mol-wrap-'+i+'"><label>Молоко кг</label><input inputmode="decimal" type="number" id="nd-mol-'+i+'" step="0.001" placeholder="0.038"></div>' +
@@ -2205,6 +2358,13 @@ function showSummary() {
   html += r('Модель',     mv);
   html += r('Коеф. кофе', v('nc-koef'));
 
+  if (prices.length) {
+    html += '<div class="summary-section">Прайс (грн/кг)</div>';
+    html += '<div class="summary-prices">';
+    prices.forEach(p => { html += `<div class="summary-price-item"><div class="summary-price-label">${p.l}</div><div class="summary-price-val">${p.v}</div></div>`; });
+    html += '</div>';
+  }
+
   if (drinks.length) {
     html += '<div class="summary-section">Напитки</div>';
     drinks.forEach((d,i) => {
@@ -2222,11 +2382,17 @@ function showSummary() {
     html += r('Промежуточный', eng?eng+' порц.':'');
   }
 
-  if (prices.length) {
-    html += '<div class="summary-section">Прайс (грн/кг)</div>';
-    html += '<div class="summary-prices">';
-    prices.forEach(p => { html += `<div class="summary-price-item"><div class="summary-price-label">${p.l}</div><div class="summary-price-val">${p.v}</div></div>`; });
-    html += '</div>';
+  const hasZay = v('nc-zay-kofe')||v('nc-zay-mol')||v('nc-zay-vis')||v('nc-zay-shok')||v('nc-zay-moroz');
+  if (hasZay) {
+    html += '<div class="summary-section">Первая отгрузка</div>';
+    const zayItems = [
+      {l:'Кофе',      v:v('nc-zay-kofe')},
+      {l:'Молоко',    v:v('nc-zay-mol')},
+      {l:'Виски',     v:v('nc-zay-vis')},
+      {l:'Шоколад',   v:v('nc-zay-shok')},
+      {l:'Мороженое', v:v('nc-zay-moroz')},
+    ].filter(z => z.v);
+    zayItems.forEach(z => { html += r(z.l, z.v+' кг'); });
   }
 
   if (v('nc-note')) {
@@ -2239,8 +2405,379 @@ function showSummary() {
   document.getElementById('summary-modal').classList.add('open');
 }
 
+// ══ НАКЛАДНАЯ ════════════════════════════════════════════════════════════════
+let invoiceRowCount = 0;
+
+function onInvoiceClientSelect() {
+  const sel  = document.getElementById('inv-client-select');
+  const wrap = document.getElementById('inv-client-manual-wrap');
+  if (sel.value === 'другой...') {
+    wrap.style.display = '';
+    document.getElementById('inv-client-manual').value = '';
+  } else {
+    wrap.style.display = 'none';
+  }
+  for (let i = 0; i < invoiceRowCount; i++) {
+    const row = document.getElementById('inv-item-row-'+i);
+    if (row) recalcInvoiceRow(i);
+  }
+}
+
+function getInvoiceClientName() {
+  const sel = document.getElementById('inv-client-select');
+  if (!sel) return '';
+  if (sel.value === 'другой...') {
+    return (document.getElementById('inv-client-manual')?.value || '').trim();
+  }
+  return sel.value;
+}
+
+function getInvoiceClientCard() {
+  const name = getInvoiceClientName();
+  if (!name) return null;
+  return clientsData.find(c => c.name === name) || null;
+}
+
+const INVOICE_CARD_PRICE_MAP = {
+  'rosso':    'priceRosso',
+  'blu':      'priceBlu',
+  'oro':      'priceOro',
+  'arabica':  'priceArabica',
+  'classic':  'priceClassic',
+  'молоко':   'priceMol',
+  'виски':    'priceViski',
+  'шоколад':  'priceShok',
+  'исп.крем': 'priceKrem',
+  'исп крем': 'priceKrem',
+};
+
+function getInvoicePriceFor(itemName) {
+  const priceList = window._priceList || [];
+  const fallback  = priceList.find(p => p.name === itemName);
+  const card = getInvoiceClientCard();
+
+  if (card) {
+    const key = INVOICE_CARD_PRICE_MAP[itemName.trim().toLowerCase()];
+    if (key && card[key] !== undefined && card[key] !== '' && card[key] !== null) {
+      const cardPrice = parseFloat(String(card[key]).replace(',','.'));
+      if (!isNaN(cardPrice)) {
+        return { price: cardPrice, unit: fallback ? fallback.unit : '' };
+      }
+    }
+  }
+  return fallback ? { price: fallback.price, unit: fallback.unit } : { price: 0, unit: '' };
+}
+
+function addInvoiceItem() {
+  const i = invoiceRowCount++;
+  const priceList = window._priceList || [];
+  const opts = priceList.map(p => `<option value="${p.name}">${p.name}</option>`).join('');
+
+  const div = document.createElement('div');
+  div.id = 'inv-item-row-'+i;
+  div.style.cssText = 'background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:14px;margin-bottom:8px';
+  div.innerHTML =
+    '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">' +
+      '<span style="font-size:13px;font-weight:500;color:var(--muted)">Позиция '+(i+1)+'</span>' +
+      '<button onclick="removeInvoiceItem('+i+')" style="background:none;border:none;color:var(--danger);font-size:20px;cursor:pointer">×</button>' +
+    '</div>' +
+    '<div class="input-grid">' +
+      '<div class="input-group full">' +
+        '<label>Товар</label>' +
+        '<select id="inv-item-name-'+i+'" onchange="onInvoiceItemSelect('+i+')" style="width:100%;background:none;border:none;outline:none;color:var(--text);font-family:var(--font-body);font-size:15px;font-weight:600;padding:0">' +
+          '<option value="">— выбрать —</option>'+opts+
+        '</select>' +
+      '</div>' +
+      '<div class="input-group"><label>Кол-во</label><input inputmode="decimal" type="number" id="inv-item-qty-'+i+'" step="0.01" min="0" placeholder="0" oninput="recalcInvoiceRow('+i+');recalcInvoiceTotal()"><div class="unit" id="inv-item-unit-'+i+'"></div></div>' +
+      '<div class="input-group"><label>Цена</label><input inputmode="decimal" type="number" id="inv-item-price-'+i+'" step="0.01" min="0" placeholder="0.00" oninput="recalcInvoiceRow('+i+');recalcInvoiceTotal()"><div class="unit">грн</div></div>' +
+      '<div class="input-group full"><label>Сумма по строке</label><div style="font-size:17px;font-weight:700;color:var(--accent);padding:4px 0" id="inv-item-sum-'+i+'">0.00</div></div>' +
+    '</div>';
+  document.getElementById('inv-items-list').appendChild(div);
+}
+
+function removeInvoiceItem(i) {
+  const row = document.getElementById('inv-item-row-'+i);
+  if (row) row.remove();
+  recalcInvoiceTotal();
+}
+
+// Срабатывает только при смене товара — подставляет цену/единицу автоматически
+function onInvoiceItemSelect(i) {
+  const nameSel = document.getElementById('inv-item-name-'+i);
+  const priceEl = document.getElementById('inv-item-price-'+i);
+  const unitEl  = document.getElementById('inv-item-unit-'+i);
+  if (!nameSel || !nameSel.value) return;
+  const { price, unit } = getInvoicePriceFor(nameSel.value);
+  if (priceEl) priceEl.value = price || '';
+  if (unitEl)  unitEl.textContent = unit || '';
+  recalcInvoiceRow(i);
+  recalcInvoiceTotal();
+}
+
+function recalcInvoiceRow(i) {
+  const qty   = parseFloat(document.getElementById('inv-item-qty-'+i)?.value)   || 0;
+  const price = parseFloat(document.getElementById('inv-item-price-'+i)?.value) || 0;
+  const sumEl = document.getElementById('inv-item-sum-'+i);
+  if (sumEl) sumEl.textContent = (qty*price).toFixed(2);
+}
+
+function recalcInvoiceTotal() {
+  let total = 0;
+  for (let i = 0; i < invoiceRowCount; i++) {
+    const row = document.getElementById('inv-item-row-'+i);
+    if (!row) continue;
+    const qty   = parseFloat(document.getElementById('inv-item-qty-'+i)?.value)   || 0;
+    const price = parseFloat(document.getElementById('inv-item-price-'+i)?.value) || 0;
+    total += qty*price;
+  }
+  const totalEl = document.getElementById('inv-total');
+  if (totalEl) totalEl.textContent = total.toFixed(2);
+  return total;
+}
+
+function resetInvoiceForm() {
+  document.getElementById('inv-items-list').innerHTML = '';
+  invoiceRowCount = 0;
+  document.getElementById('inv-client-select').value = '';
+  document.getElementById('inv-client-manual-wrap').style.display = 'none';
+  document.getElementById('inv-client-manual').value = '';
+  ['inv-fact','inv-otsr','inv-service','inv-card'].forEach(id => {
+    const el = document.getElementById(id); if (el) el.value = '';
+  });
+  recalcInvoiceTotal();
+  addInvoiceItem();
+}
+
+async function submitInvoice() {
+  const name = getInvoiceClientName();
+  if (!name) { showToast('Выберите клиента или введите название', true); return; }
+
+  const items = [];
+  for (let i = 0; i < invoiceRowCount; i++) {
+    const row = document.getElementById('inv-item-row-'+i); if (!row) continue;
+    const itemName = document.getElementById('inv-item-name-'+i)?.value;
+    const qty      = parseFloat(document.getElementById('inv-item-qty-'+i)?.value)   || 0;
+    const price    = parseFloat(document.getElementById('inv-item-price-'+i)?.value) || 0;
+    const unit     = document.getElementById('inv-item-unit-'+i)?.textContent || '';
+    if (!itemName || qty <= 0) continue;
+    items.push({ name: itemName, unit, qty, price, sum: qty*price });
+  }
+  if (!items.length) { showToast('Добавьте хотя бы одну позицию с количеством', true); return; }
+
+  const total   = recalcInvoiceTotal();
+  const fact    = parseFloat(document.getElementById('inv-fact')?.value)    || 0;
+  const otsr    = parseFloat(document.getElementById('inv-otsr')?.value)    || 0;
+  const service = parseFloat(document.getElementById('inv-service')?.value) || 0;
+  const card    = parseFloat(document.getElementById('inv-card')?.value)    || 0;
+
+  const n = new Date();
+  const dateStr = String(n.getDate()).padStart(2,'0')+'.'+String(n.getMonth()+1).padStart(2,'0')+'.'+n.getFullYear();
+  const tp = (clientsData.find(c=>c.name===name)?.tp) || CFG.name;
+
+  const btn = document.querySelector('#page-invoice .btn-submit');
+  const sp  = document.getElementById('inv-spinner');
+  const lb  = document.getElementById('inv-label');
+  if (btn) btn.disabled = true;
+  if (sp)  sp.style.display = 'block';
+  if (lb)  lb.textContent = 'Сохраняем...';
+
+  try {
+    const invoiceRow = {
+      tp, client: name, date: dateStr,
+      items, total: total.toFixed(2),
+      fact: fact || '', otsr: otsr || '', service: service || '', card: card || '',
+    };
+    await scriptPost({ action: 'addInvoice', invoice: invoiceRow });
+    showToast('✓ Накладная сохранена!');
+    showInvoiceReceipt(invoiceRow);
+    resetInvoiceForm();
+  } catch (e) {
+    showToast('Ошибка: ' + e.message, true);
+  } finally {
+    if (btn) btn.disabled = false;
+    if (sp)  sp.style.display = 'none';
+    if (lb)  lb.textContent = 'Сохранить';
+  }
+}
+
+// ── Модальное окно чека + печать ──────────────────────────────────────────
+let _lastInvoiceForPrint = null;
+
+function showInvoiceReceipt(invoice) {
+  _lastInvoiceForPrint = invoice;
+  let html = '';
+  html += `<div class="summary-row"><span class="sl">Клиент</span><span class="sv">${invoice.client}</span></div>`;
+  html += `<div class="summary-row"><span class="sl">Дата</span><span class="sv">${invoice.date}</span></div>`;
+  html += `<div class="summary-row"><span class="sl">ТП</span><span class="sv">${invoice.tp}</span></div>`;
+  html += '<div class="summary-section">Позиции</div>';
+  invoice.items.forEach(it => {
+    html += `<div class="summary-drink">
+      <div class="summary-drink-name">${it.name}${it.unit?' ('+it.unit+')':''}</div>
+      <div class="summary-drink-norms">${it.qty} × ${it.price.toFixed(2)} грн = <b>${it.sum.toFixed(2)} грн</b></div>
+    </div>`;
+  });
+  html += `<div class="summary-row" style="margin-top:8px;border-top:2px solid #ddd;padding-top:8px"><span class="sl" style="font-weight:700;font-size:15px">ИТОГО</span><span class="sv" style="font-size:17px">${invoice.total} грн</span></div>`;
+  if (invoice.fact)    html += `<div class="summary-row"><span class="sl">Факт. платёж</span><span class="sv">${invoice.fact} грн</span></div>`;
+  if (invoice.card)    html += `<div class="summary-row"><span class="sl">Оплата на карту</span><span class="sv">${invoice.card} грн</span></div>`;
+  if (invoice.otsr)    html += `<div class="summary-row"><span class="sl">Отсрочка</span><span class="sv">${invoice.otsr} грн</span></div>`;
+  if (invoice.service) html += `<div class="summary-row"><span class="sl">Сервис</span><span class="sv">${invoice.service} грн</span></div>`;
+
+  document.getElementById('summary-body').innerHTML = html;
+  document.getElementById('summary-subtitle').textContent = invoice.date + ' · ' + invoice.tp;
+
+  let printBtn = document.getElementById('summary-print-btn');
+  if (!printBtn) {
+    printBtn = document.createElement('button');
+    printBtn.id = 'summary-print-btn';
+    printBtn.className = 'summary-close';
+    printBtn.style.background = 'var(--accent)';
+    printBtn.style.color = '#fff';
+    printBtn.style.marginBottom = '8px';
+    printBtn.onclick = printInvoiceReceipt;
+    document.querySelector('.summary-box').insertBefore(printBtn, document.querySelector('.summary-close'));
+  }
+  printBtn.style.display = '';
+  printBtn.textContent = '🖨️ Печать';
+
+  document.getElementById('summary-modal').classList.add('open');
+}
+
 function closeSummary() {
   document.getElementById('summary-modal').classList.remove('open');
+  const printBtn = document.getElementById('summary-print-btn');
+  if (printBtn) printBtn.style.display = 'none';
+}
+
+// ══ ПЕЧАТЬ НА BLUETOOTH-ПРИНТЕР (ESC/POS, Xprinter XP-P210B) ═════════════════
+let _btPrinterDevice = null;
+let _btPrinterChar   = null;
+
+const BT_PRINTER_SERVICE_UUID = '000018f0-0000-1000-8000-00805f9b34fb';
+const BT_PRINTER_CHAR_UUID    = '00002af1-0000-1000-8000-00805f9b34fb';
+
+function cyrillicToCp866(str) {
+  const bytes = [];
+  for (let i = 0; i < str.length; i++) {
+    const code = str.charCodeAt(i);
+    if (code < 128) { bytes.push(code); continue; }
+    if (code >= 0x0410 && code <= 0x043F) { bytes.push(code - 0x0410 + 0x80); continue; }
+    if (code >= 0x0440 && code <= 0x044F) { bytes.push(code - 0x0440 + 0xA0); continue; }
+    if (code === 0x0401) { bytes.push(0xF0); continue; }
+    if (code === 0x0451) { bytes.push(0xF1); continue; }
+    bytes.push(0x3F);
+  }
+  return bytes;
+}
+
+function escposEncode(invoice) {
+  const bytes = [];
+  const push = arr => arr.forEach(b => bytes.push(b));
+  const ESC = 0x1B, GS = 0x1D;
+
+  push([ESC, 0x40]);
+  push([ESC, 0x61, 0x01]);
+
+  function textLine(str, bold) {
+    if (bold) push([ESC, 0x45, 0x01]);
+    push(cyrillicToCp866(str));
+    push([0x0A]);
+    if (bold) push([ESC, 0x45, 0x00]);
+  }
+
+  textLine('MEGA UG', true);
+  push([ESC, 0x61, 0x00]);
+  textLine('Клиент: ' + invoice.client);
+  textLine('Дата: ' + invoice.date);
+  textLine('ТП: ' + invoice.tp);
+  textLine('------------------------------');
+  invoice.items.forEach(it => {
+    textLine(it.name + (it.unit?(' ('+it.unit+')'):''));
+    textLine(`  ${it.qty} x ${it.price.toFixed(2)} = ${it.sum.toFixed(2)} грн`);
+  });
+  textLine('------------------------------');
+  textLine('ИТОГО: ' + invoice.total + ' грн', true);
+  if (invoice.fact)    textLine('Факт. платёж: ' + invoice.fact + ' грн');
+  if (invoice.card)    textLine('Оплата на карту: ' + invoice.card + ' грн');
+  if (invoice.otsr)    textLine('Отсрочка: ' + invoice.otsr + ' грн');
+  if (invoice.service) textLine('Сервис: ' + invoice.service + ' грн');
+  push([0x0A, 0x0A, 0x0A]);
+  push([GS, 0x56, 0x00]);
+
+  return new Uint8Array(bytes);
+}
+
+async function connectPrinter() {
+  if (!navigator.bluetooth) {
+    showToast('Bluetooth не поддерживается этим браузером', true);
+    return null;
+  }
+  try {
+    setPrintStatus('Подключение…');
+    const device = await navigator.bluetooth.requestDevice({
+      filters: [{ services: [BT_PRINTER_SERVICE_UUID] }],
+      optionalServices: [BT_PRINTER_SERVICE_UUID],
+    });
+    const server  = await device.gatt.connect();
+    const service  = await server.getPrimaryService(BT_PRINTER_SERVICE_UUID);
+    const char     = await service.getCharacteristic(BT_PRINTER_CHAR_UUID);
+    _btPrinterDevice = device;
+    _btPrinterChar   = char;
+    localStorage.setItem('bt_printer_id', device.id);
+    return char;
+  } catch (e) {
+    setPrintStatus('Принтер не найден');
+    showToast('Не удалось подключиться: ' + e.message, true);
+    return null;
+  }
+}
+
+async function reconnectPrinter() {
+  if (_btPrinterChar) return _btPrinterChar;
+  if (!navigator.bluetooth || !navigator.bluetooth.getDevices) return null;
+  try {
+    const savedId = localStorage.getItem('bt_printer_id');
+    if (!savedId) return null;
+    const devices = await navigator.bluetooth.getDevices();
+    const device  = devices.find(d => d.id === savedId);
+    if (!device) return null;
+    setPrintStatus('Подключение…');
+    const server  = await device.gatt.connect();
+    const service = await server.getPrimaryService(BT_PRINTER_SERVICE_UUID);
+    const char    = await service.getCharacteristic(BT_PRINTER_CHAR_UUID);
+    _btPrinterDevice = device;
+    _btPrinterChar   = char;
+    return char;
+  } catch (e) {
+    return null;
+  }
+}
+
+function setPrintStatus(msg) {
+  showToast(msg, msg.includes('не найден') || msg.includes('Ошибка'));
+}
+
+async function printInvoiceReceipt() {
+  if (!_lastInvoiceForPrint) { showToast('Нет данных для печати', true); return; }
+  setPrintStatus('Подключение…');
+
+  let char = await reconnectPrinter();
+  if (!char) char = await connectPrinter();
+  if (!char) return;
+
+  try {
+    setPrintStatus('Печать…');
+    const data = escposEncode(_lastInvoiceForPrint);
+    const CHUNK = 180;
+    for (let i = 0; i < data.length; i += CHUNK) {
+      const chunk = data.slice(i, i + CHUNK);
+      await char.writeValue(chunk);
+      await new Promise(r => setTimeout(r, 40));
+    }
+    setPrintStatus('Готово');
+  } catch (e) {
+    setPrintStatus('Ошибка печати');
+    showToast('Ошибка печати: ' + e.message, true);
+  }
 }
 
 async function submitNewClient(){
@@ -2279,16 +2816,27 @@ async function submitNewClient(){
       scriptPost({action:'addEquipment', row:er}),
     ];
     if(drs.length) ncPromises.push(scriptPost({action:'addDrinks', rows:drs}));
-    // Счётчики на момент установки → Общие счётчики (только если заполнены)
+    // Счётчики на момент установки → Общие счётчики (только если заполнен)
     const ncGen = document.getElementById('nc-gen-counter')?.value;
-    const ncEng = document.getElementById('nc-eng-counter')?.value;
-    if(ncGen || ncEng) {
-      ncPromises.push(scriptPost({action:'addGenCounters', row:[name, mid, ncDate, ncGen||'', ncEng||'']}));
+    if(ncGen) {
+      ncPromises.push(scriptPost({action:'addGenCounters', row:[name, mid, ncDate, ncGen, '']}));
+    }
+    // Первая отгрузка → Визиты (только если хоть одно поле заполнено)
+    const ncZayKofe  = v('nc-zay-kofe');
+    const ncZayMol   = v('nc-zay-mol');
+    const ncZayVis   = v('nc-zay-vis');
+    const ncZayShok  = v('nc-zay-shok');
+    const ncZayMoroz = v('nc-zay-moroz');
+    if(ncZayKofe||ncZayMol||ncZayVis||ncZayShok||ncZayMoroz) {
+      const tp = (clientsData.find(c=>c.name===name)?.tp) || CFG.name;
+      const firstVisitRow = [name, ncDate, tp, 'Доп.загрузка', '', '', '', '', '',
+        ncZayKofe, ncZayMol, ncZayVis, ncZayShok, ncZayMoroz];
+      ncPromises.push(scriptPost({action:'addVisit', row:firstVisitRow}));
     }
     await Promise.all(ncPromises);
     showSummary(); // сводка для скриншота — вызываем ДО сброса формы
     showToast(`✓ Клиент "${name}" создан!`);
-    ['nc-date','nc-name','nc-address','nc-contact','nc-type','nc-day','nc-bonus','nc-otsr','nc-extra','nc-service','nc-machine-id','nc-model','nc-serial','nc-koef','nc-gen-counter','nc-eng-counter','nc-note','nc-p-rosso','nc-p-blu','nc-p-oro','nc-p-arabica','nc-p-classic','nc-p-mol','nc-p-viski','nc-p-shok','nc-p-krem'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+    ['nc-date','nc-name','nc-address','nc-contact','nc-type','nc-day','nc-bonus','nc-otsr','nc-extra','nc-service','nc-machine-id','nc-model','nc-serial','nc-koef','nc-gen-counter','nc-eng-counter','nc-note','nc-p-rosso','nc-p-blu','nc-p-oro','nc-p-arabica','nc-p-classic','nc-p-mol','nc-p-viski','nc-p-shok','nc-p-krem','nc-zay-kofe','nc-zay-mol','nc-zay-vis','nc-zay-shok','nc-zay-moroz'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
     // Сбрасываем select модели и скрываем поле ручного ввода
     const _ms=document.getElementById('nc-model-select');if(_ms)_ms.value='';
     const _mw=document.getElementById('nc-model-manual-wrap');if(_mw)_mw.style.display='none';;
@@ -2310,6 +2858,9 @@ function switchTab(tab, btn) {
     // Автозаполнение сегодняшней даты
     const _nd=document.getElementById('nc-date');
     if(_nd&&!_nd.value){const _n=new Date();const _p=n=>String(n).padStart(2,'0');_nd.value=`${_n.getFullYear()}-${_p(_n.getMonth()+1)}-${_p(_n.getDate())}`;}
+  }
+  if(tab==='invoice' && invoiceRowCount===0){
+    addInvoiceItem();
   }
 }
 
