@@ -614,7 +614,7 @@ body{font-family:var(--font-body);background:var(--bg);color:var(--text);min-hei
     </button>
 
     <!-- ИТОГО -->
-    <div class="client-card" style="margin-top:16px">
+    <div class="client-card" style="margin-top:16px;display:flex">
       <div class="cc-row"><div class="cc-label">Сумма к оплате</div><div class="cc-val" id="inv-total" style="font-size:18px;color:var(--accent)">0.00</div></div>
     </div>
 
@@ -1071,6 +1071,18 @@ async function fetchAllData() {
         unit: String(r[19]||'').trim(),
         price: r[20] != null && r[20] !== '' ? parseFloat(String(r[20]).replace(',','.')) : 0,
       }));
+
+    // ── Справ. польз. — ссылка (col E) и контакты (col F) для чека накладной ──
+    setStatus('Загружаем данные торгового...');
+    const userRaw = await safeGet('Справ. польз.');
+    // A=имя торгового, E=ссылка(индекс4), F=контакты(индекс5)
+    window._userContactInfo = {};
+    userRaw.slice(1).filter(r => r[0]).forEach(r => {
+      window._userContactInfo[String(r[0]).trim()] = {
+        link:    String(r[4]||'').trim(),
+        contact: String(r[5]||'').trim(),
+      };
+    });
 
     // ── Модели аппаратов из Справ.нап. col E (E2:E38) ────────────────────
     // Берём col E (индекс 4), фильтруем пустые и дубли
@@ -2572,7 +2584,9 @@ async function submitInvoice() {
 
   const n = new Date();
   const dateStr = String(n.getDate()).padStart(2,'0')+'.'+String(n.getMonth()+1).padStart(2,'0')+'.'+n.getFullYear();
-  const tp = (clientsData.find(c=>c.name===name)?.tp) || CFG.name;
+  const timeStr = String(n.getHours()).padStart(2,'0')+':'+String(n.getMinutes()).padStart(2,'0');
+  const tp      = (clientsData.find(c=>c.name===name)?.tp) || CFG.name;
+  const tpLabel = CFG.label || CFG.name; // полное имя торгового (Фамилия Имя) для чека
 
   const btn = document.querySelector('#page-invoice .btn-submit');
   const sp  = document.getElementById('inv-spinner');
@@ -2583,7 +2597,7 @@ async function submitInvoice() {
 
   try {
     const invoiceRow = {
-      tp, client: name, date: dateStr,
+      tp, tpLabel, client: name, date: dateStr, time: timeStr,
       items, total: total.toFixed(2),
       fact: fact || '', otsr: otsr || '', service: service || '', card: card || '',
     };
@@ -2605,25 +2619,63 @@ let _lastInvoiceForPrint = null;
 
 function showInvoiceReceipt(invoice) {
   _lastInvoiceForPrint = invoice;
+  const uc = (window._userContactInfo || {})[invoice.tpLabel] || (window._userContactInfo || {})[invoice.tp] || {};
+  const qrLink = uc.link || '';
+  const contact = uc.contact || '';
+
   let html = '';
-  html += `<div class="summary-row"><span class="sl">Клиент</span><span class="sv">${invoice.client}</span></div>`;
-  html += `<div class="summary-row"><span class="sl">Дата</span><span class="sv">${invoice.date}</span></div>`;
-  html += `<div class="summary-row"><span class="sl">ТП</span><span class="sv">${invoice.tp}</span></div>`;
-  html += '<div class="summary-section">Позиции</div>';
+
+  // Шапка — фіксований текст
+  html += `<div style="text-align:center;margin-bottom:14px">
+    <div style="font-size:13px;color:#888;letter-spacing:.04em">Ароматна кава</div>
+    <div style="font-size:22px;font-weight:800;letter-spacing:.03em;margin-top:2px">MEGA UG COFFEE</div>
+  </div>`;
+  html += `<div style="border-top:1px solid #ddd;margin:10px 0"></div>`;
+
+  // Клієнт / Дата візиту / Торговий представник
+  html += `<div class="summary-row"><span class="sl">Клієнт</span><span class="sv">${invoice.client}</span></div>`;
+  html += `<div class="summary-row"><span class="sl">Дата візиту</span><span class="sv">${invoice.date} ${invoice.time||''}</span></div>`;
+  html += `<div class="summary-row"><span class="sl">Торговий представник</span><span class="sv">${invoice.tpLabel||invoice.tp}</span></div>`;
+  html += `<div style="border-top:1px solid #ddd;margin:10px 0"></div>`;
+
+  // Позиції
   invoice.items.forEach(it => {
     html += `<div class="summary-drink">
       <div class="summary-drink-name">${it.name}${it.unit?' ('+it.unit+')':''}</div>
-      <div class="summary-drink-norms">${it.qty} × ${it.price.toFixed(2)} грн = <b>${it.sum.toFixed(2)} грн</b></div>
+      <div class="summary-drink-norms">${it.qty} × ${it.price.toFixed(2)} = <b>${it.sum.toFixed(2)}</b></div>
     </div>`;
   });
-  html += `<div class="summary-row" style="margin-top:8px;border-top:2px solid #ddd;padding-top:8px"><span class="sl" style="font-weight:700;font-size:15px">ИТОГО</span><span class="sv" style="font-size:17px">${invoice.total} грн</span></div>`;
-  if (invoice.fact)    html += `<div class="summary-row"><span class="sl">Факт. платёж</span><span class="sv">${invoice.fact} грн</span></div>`;
+
+  // РАЗОМ
+  html += `<div style="display:flex;justify-content:space-between;align-items:baseline;margin-top:10px;padding-top:10px;border-top:2px solid #333">
+    <span style="font-size:17px;font-weight:800">РАЗОМ</span>
+    <span style="font-size:19px;font-weight:800">${invoice.total} <span style="font-size:13px;font-weight:600">грн</span></span>
+  </div>`;
+  html += `<div style="border-top:1px solid #ddd;margin:10px 0"></div>`;
+
+  // Оплата
+  if (invoice.fact)    html += `<div class="summary-row"><span class="sl">Оплачено готівкою</span><span class="sv">${invoice.fact} грн.</span></div>`;
   if (invoice.card)    html += `<div class="summary-row"><span class="sl">Оплата на карту</span><span class="sv">${invoice.card} грн</span></div>`;
-  if (invoice.otsr)    html += `<div class="summary-row"><span class="sl">Отсрочка</span><span class="sv">${invoice.otsr} грн</span></div>`;
-  if (invoice.service) html += `<div class="summary-row"><span class="sl">Сервис</span><span class="sv">${invoice.service} грн</span></div>`;
+  if (invoice.service) html += `<div class="summary-row"><span class="sl">Сервіс</span><span class="sv">${invoice.service} грн.</span></div>`;
+  if (invoice.otsr)    html += `<div class="summary-row"><span class="sl">Відстрочка</span><span class="sv">${invoice.otsr} грн.</span></div>`;
+  html += `<div style="border-top:1px solid #ddd;margin:14px 0"></div>`;
+
+  // QR + Наш Instagram / Рекомендуйте нас!
+  html += `<div style="display:flex;align-items:center;gap:14px;margin-bottom:14px">
+    ${qrLink ? `<img src="https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=${encodeURIComponent(qrLink)}" style="width:80px;height:80px;border-radius:6px" />` : ''}
+    <div>
+      <div style="font-size:16px;font-weight:700;line-height:1.3">Наш<br>Instagram</div>
+      <div style="font-size:14px;font-weight:600;color:#444;margin-top:6px">Рекомендуйте нас!</div>
+    </div>
+  </div>`;
+  html += `<div style="border-top:1px solid #ddd;margin:10px 0"></div>`;
+
+  // Контакти для зв'язку
+  html += `<div style="text-align:center;font-size:11px;color:#888;text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px">Контакти для зв'язку</div>`;
+  html += `<div style="text-align:center;font-size:14px;font-weight:600">${contact || '—'}</div>`;
 
   document.getElementById('summary-body').innerHTML = html;
-  document.getElementById('summary-subtitle').textContent = invoice.date + ' · ' + invoice.tp;
+  document.getElementById('summary-subtitle').textContent = invoice.date + ' · ' + (invoice.tpLabel||invoice.tp);
 
   let printBtn = document.getElementById('summary-print-btn');
   if (!printBtn) {
@@ -2655,51 +2707,107 @@ let _btPrinterChar   = null;
 const BT_PRINTER_SERVICE_UUID = '000018f0-0000-1000-8000-00805f9b34fb';
 const BT_PRINTER_CHAR_UUID    = '00002af1-0000-1000-8000-00805f9b34fb';
 
-function cyrillicToCp866(str) {
+// CP1251 поддерживает украинские буквы і/ї/є/ґ (в отличие от CP866).
+// Перед текстом отправляем команду переключения кодовой страницы принтера.
+function escposSetCodepage(push) {
+  push([0x1B, 0x74, 0x48]); // ESC t 72 — Windows-1251 (поддерживается большинством ESC/POS, включая Xprinter)
+}
+
+function cyrillicToCp1251(str) {
   const bytes = [];
   for (let i = 0; i < str.length; i++) {
     const code = str.charCodeAt(i);
     if (code < 128) { bytes.push(code); continue; }
-    if (code >= 0x0410 && code <= 0x043F) { bytes.push(code - 0x0410 + 0x80); continue; }
-    if (code >= 0x0440 && code <= 0x044F) { bytes.push(code - 0x0440 + 0xA0); continue; }
-    if (code === 0x0401) { bytes.push(0xF0); continue; }
-    if (code === 0x0451) { bytes.push(0xF1); continue; }
+    if (code === 0x0401) { bytes.push(0xA8); continue; } // Ё
+    if (code === 0x0451) { bytes.push(0xB8); continue; } // ё
+    if (code === 0x0490) { bytes.push(0xA5); continue; } // Ґ
+    if (code === 0x0491) { bytes.push(0xB4); continue; } // ґ
+    if (code === 0x0404) { bytes.push(0xAA); continue; } // Є
+    if (code === 0x0454) { bytes.push(0xBA); continue; } // є
+    if (code === 0x0406) { bytes.push(0xB2); continue; } // І
+    if (code === 0x0456) { bytes.push(0xB3); continue; } // і
+    if (code === 0x0407) { bytes.push(0xAF); continue; } // Ї
+    if (code === 0x0457) { bytes.push(0xBF); continue; } // ї
+    if (code >= 0x0410 && code <= 0x044F) { bytes.push(code - 0x0410 + 0xC0); continue; } // А-я
     bytes.push(0x3F);
   }
   return bytes;
+}
+
+// Встроенная ESC/POS команда печати QR-кода (GS ( k ... ) — поддерживается
+// большинством термопринтеров, включая Xprinter XP-P210B
+function escposQR(bytes, push, data) {
+  if (!data) return;
+  const d = new TextEncoder().encode(data); // QR-данные кодируются как обычный UTF-8/ASCII (ссылка)
+  const storeLen = d.length + 3;
+  const pL = storeLen & 0xFF, pH = (storeLen >> 8) & 0xFF;
+
+  // Модель QR (модель 2)
+  push([0x1D, 0x28, 0x6B, 0x04, 0x00, 0x31, 0x41, 0x32, 0x00]);
+  // Размер модуля (точки) — 6 для разумного размера на 58мм бумаге
+  push([0x1D, 0x28, 0x6B, 0x03, 0x00, 0x31, 0x43, 0x06]);
+  // Уровень коррекции ошибок
+  push([0x1D, 0x28, 0x6B, 0x03, 0x00, 0x31, 0x45, 0x31]);
+  // Сохранить данные в буфер QR
+  push([0x1D, 0x28, 0x6B, pL, pH, 0x31, 0x50, 0x30]);
+  push(Array.from(d));
+  // Печать буфера QR
+  push([0x1D, 0x28, 0x6B, 0x03, 0x00, 0x31, 0x51, 0x30]);
 }
 
 function escposEncode(invoice) {
   const bytes = [];
   const push = arr => arr.forEach(b => bytes.push(b));
   const ESC = 0x1B, GS = 0x1D;
+  const uc = (window._userContactInfo || {})[invoice.tpLabel] || (window._userContactInfo || {})[invoice.tp] || {};
 
   push([ESC, 0x40]);
-  push([ESC, 0x61, 0x01]);
+  escposSetCodepage(push); // переключаем принтер на CP1251 для украинских букв
+  push([ESC, 0x61, 0x01]); // центр
 
   function textLine(str, bold) {
     if (bold) push([ESC, 0x45, 0x01]);
-    push(cyrillicToCp866(str));
+    push(cyrillicToCp1251(str));
     push([0x0A]);
     if (bold) push([ESC, 0x45, 0x00]);
   }
 
-  textLine('MEGA UG', true);
-  push([ESC, 0x61, 0x00]);
-  textLine('Клиент: ' + invoice.client);
-  textLine('Дата: ' + invoice.date);
-  textLine('ТП: ' + invoice.tp);
+  textLine('Ароматна кава');
+  textLine('MEGA UG COFFEE', true);
+  textLine('------------------------------');
+  push([ESC, 0x61, 0x00]); // влево
+  textLine('Клiєнт: ' + invoice.client);
+  textLine('Дата вiзиту: ' + invoice.date + ' ' + (invoice.time||''));
+  textLine('Торговий представник: ' + (invoice.tpLabel||invoice.tp));
   textLine('------------------------------');
   invoice.items.forEach(it => {
     textLine(it.name + (it.unit?(' ('+it.unit+')'):''));
-    textLine(`  ${it.qty} x ${it.price.toFixed(2)} = ${it.sum.toFixed(2)} грн`);
+    textLine(`  ${it.qty} x ${it.price.toFixed(2)} = ${it.sum.toFixed(2)}`);
   });
   textLine('------------------------------');
-  textLine('ИТОГО: ' + invoice.total + ' грн', true);
-  if (invoice.fact)    textLine('Факт. платёж: ' + invoice.fact + ' грн');
+  textLine('РАЗОМ: ' + invoice.total + ' грн', true);
+  textLine('------------------------------');
+  if (invoice.fact)    textLine('Оплачено готiвкою: ' + invoice.fact + ' грн.');
   if (invoice.card)    textLine('Оплата на карту: ' + invoice.card + ' грн');
-  if (invoice.otsr)    textLine('Отсрочка: ' + invoice.otsr + ' грн');
-  if (invoice.service) textLine('Сервис: ' + invoice.service + ' грн');
+  if (invoice.service) textLine('Сервiс: ' + invoice.service + ' грн.');
+  if (invoice.otsr)    textLine('Вiдстрочка: ' + invoice.otsr + ' грн.');
+  push([0x0A]);
+
+  // QR-код на сторінку торгового
+  if (uc.link) {
+    push([ESC, 0x61, 0x01]); // центр
+    escposQR(bytes, push, uc.link);
+    push([0x0A]);
+    textLine('Наш Instagram');
+    textLine('Рекомендуйте нас!', true);
+  }
+
+  if (uc.contact) {
+    push([0x0A]);
+    textLine("Контакти для зв'язку:");
+    textLine(uc.contact, true);
+  }
+
   push([0x0A, 0x0A, 0x0A]);
   push([GS, 0x56, 0x00]);
 
