@@ -2672,7 +2672,7 @@ function showInvoiceReceipt(invoice) {
 
   // Контакти для зв'язку
   html += `<div style="text-align:center;font-size:11px;color:#888;text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px">Контакти для зв'язку</div>`;
-  html += `<div style="text-align:center;font-size:14px;font-weight:600">${contact || '—'}</div>`;
+  html += `<div style="text-align:center;font-size:14px;font-weight:600;white-space:pre-line;line-height:1.5">${contact || '—'}</div>`;
 
   document.getElementById('summary-body').innerHTML = html;
   document.getElementById('summary-subtitle').textContent = invoice.date + ' · ' + (invoice.tpLabel||invoice.tp);
@@ -2805,7 +2805,7 @@ function escposEncode(invoice) {
   if (uc.contact) {
     push([0x0A]);
     textLine("Контакти для зв'язку:");
-    textLine(uc.contact, true);
+    uc.contact.split('\n').forEach(line => { if (line.trim()) textLine(line.trim(), true); });
   }
 
   push([0x0A, 0x0A, 0x0A]);
