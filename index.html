@@ -381,6 +381,22 @@ body{font-family:var(--font-body);background:var(--bg);color:var(--text);min-hei
       </select>
       <button class="btn-load" onclick="loadDash()">Загрузить</button>
     </div>
+
+    <!-- ПЕРИОД (альтернатива одной дате — для расчёта за неделю/месяц и т.п.) -->
+    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:8px">
+      <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--muted);cursor:pointer">
+        <input type="checkbox" id="dash-period-mode" onchange="onDashPeriodModeToggle()" style="width:16px;height:16px;cursor:pointer">
+        Считать за период
+      </label>
+      <div id="dash-period-fields" style="display:none;gap:8px;flex-wrap:wrap;align-items:center;flex:1">
+        <input type="date" id="dash-period-from" style="flex:1;min-width:130px;background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:9px 10px;color:var(--text);font-family:var(--font-body);font-size:13px">
+        <input type="date" id="dash-period-to" style="flex:1;min-width:130px;background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:9px 10px;color:var(--text);font-family:var(--font-body);font-size:13px">
+        <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--muted);cursor:pointer;white-space:nowrap">
+          <input type="checkbox" id="dash-exclude-tech" style="width:16px;height:16px;cursor:pointer">
+          Без визитов техника
+        </label>
+      </div>
+    </div>
     <div id="dash-content"><div class="empty-state">Выберите клиента и нажмите «Загрузить»</div></div>
   </div>
 
@@ -825,12 +841,13 @@ async function safeGet(sheet, months, baseUrl) {
   try { return await scriptGet(sheet, months, baseUrl); }
   catch(e) { console.warn('safeGet:', sheet, e.message); return []; }
 }
-async function scriptPost(payload, retries=2, timeoutMs=25000) {
+async function scriptPost(payload, retries=2, timeoutMs=25000, baseUrl) {
+  const url = baseUrl || CFG.scriptUrl;
   for (let attempt = 0; attempt <= retries; attempt++) {
     try {
       const controller = new AbortController();
       const timeout = setTimeout(() => controller.abort(), timeoutMs); // таймаут передаётся снаружи
-      const r = await fetch(CFG.scriptUrl, {
+      const r = await fetch(url, {
         method: 'POST',
         headers: {'Content-Type':'text/plain'},
         body: JSON.stringify(payload),
@@ -839,6 +856,10 @@ async function scriptPost(payload, retries=2, timeoutMs=25000) {
       clearTimeout(timeout);
       if (!r.ok) throw new Error(`Ошибка сети: ${r.status}`);
       const d = await r.json();
+      if (d.timings) {
+        console.log('⏱️ Apps Script timings (' + payload.action + '):', d.timings.join(' | '));
+        window._lastTimings = d.timings; // сохраняем — можно посмотреть в консоли: window._lastTimings
+      }
       if (d.status === 'error') throw new Error(d.message);
       return d;
     } catch(e) {
@@ -856,12 +877,12 @@ function applyRoleRestrictions() {
   // Сначала сбрасываем все вкладки — чтобы при смене аккаунта не оставались скрытые
   document.querySelectorAll('.nav-tab').forEach(el => el.style.display = '');
 
-  // Техник: убрать вкладки Изменения и Клиент, скрыть заявку и прайс
+  // Техник: убрать вкладки Изменения, Клиент, Накладная. Скрыть заявку и прайс.
   if (isTech()) {
-    // Скрыть вкладки Изменения и Клиент
+    // Скрыть вкладки Изменения, Клиент, Накладная
     document.querySelectorAll('.nav-tab').forEach(el => {
-      const txt = el.textContent.trim();
-      if (txt === 'ИЗМЕНЕНИЯ' || txt === 'КЛИЕНТ') el.style.display = 'none';
+      const txt = el.textContent.trim().toLowerCase();
+      if (txt === 'изменения' || txt === 'клиент' || txt === 'накладная') el.style.display = 'none';
     });
     // Скрыть секцию Заявка в визите
     const zaySections = document.querySelectorAll('.section-title');
@@ -881,13 +902,15 @@ function applyRoleRestrictions() {
   if (_af) _af.style.display = 'none';
 
   // Агент: вкладка Клиент остаётся — торговые создают новых клиентов
-  // Админ: убрать Визит и Клиент
+  // Админ: убрать Визит и Клиент. Техник: Визит остаётся, фильтр торгового показываем обоим.
   if (isAdmin()) {
     document.querySelectorAll('.nav-tab').forEach(el => {
       const txt = el.textContent.trim().toLowerCase();
-      if (txt === 'визит' || txt === 'клиент') el.style.display = 'none';
+      if (txt === 'визит' || txt === 'клиент' || txt === 'накладная') el.style.display = 'none';
     });
-    // Показываем фильтр по торговому
+  }
+  if (isAdmin() || isTech()) {
+    // Показываем фильтр по торговому — для tech он переключает куда писать визит/изменения
     const agentFilter = document.getElementById('admin-agent-filter');
     if (agentFilter) agentFilter.style.display = '';
   }
@@ -1001,7 +1024,7 @@ async function fetchAllData() {
         priceOro:     r[15]||'', priceArabica: r[16]||'',
         priceClassic: r[17]||'', priceMol:     r[18]||'',
         priceViski:   r[19]||'', priceShok:    r[20]||'', priceKrem: r[21]||'',
-        equip: '', koef: ''
+        equip: '', koef: '', scriptUrl: CFG.scriptUrl,
       }));
     console.log('Клиентов загружено:', clientsData.length);
     if (clientsData.length > 0) {
@@ -1574,6 +1597,15 @@ function adjDrink(i, d) {
   inp.value = Math.max(0, parseInt(inp.value||0) + d);
 }
 
+// Возвращает scriptUrl таблицы, к которой относится клиент.
+// Для агента — всегда CFG.scriptUrl (своя единственная таблица).
+// Для admin/tech — берём scriptUrl, привязанный к найденному клиенту
+// (заполняется в fetchAllData/fetchFromScript), иначе CFG.scriptUrl как fallback.
+function getClientScriptUrl(clientName) {
+  const cl = clientsData.find(c => c.name === clientName);
+  return (cl && cl.scriptUrl) || CFG.scriptUrl;
+}
+
 async function submitVisit() {
   const client = document.getElementById('visit-client').value;
   if (!client) { showToast('Выберите клиента', true); return; }
@@ -1617,16 +1649,18 @@ async function submitVisit() {
       v('zay-shok'),     // M(12) Заявка шоколад
       v('zay-moroz'),    // N(13) Заявка мороженое
     ];
-    // Собираем все запросы и отправляем параллельно
-    const serial = document.getElementById('visit-machine').value || '';
-    const drinks = window._filteredDrinks || [];
-    const promises = [];
+    // Отправляем последовательно (не параллельно) — параллельные запросы
+    // от одного визита конкурировали за один и тот же LockService на сервере,
+    // что приводило к долгому ожиданию очереди и каскаду повторных попыток.
+    const serial    = document.getElementById('visit-machine').value || '';
+    const drinks    = window._filteredDrinks || [];
+    const targetUrl = getClientScriptUrl(client);
 
     // 1. Визит — только если есть остатки или заявка
     const _hasOst = [4,5,6,7,8].some(i => row[i] !== '' && row[i] !== null && parseFloat(row[i]) > 0);
     const _hasZay = [9,10,11,12,13].some(i => row[i] !== '' && row[i] !== null && parseFloat(row[i]) > 0);
     if (_hasOst || _hasZay) {
-      promises.push(scriptPost({ action:'addVisit', row }));
+      await scriptPost({ action:'addVisit', row }, 2, 25000, targetUrl);
     }
 
     // 2. Счётчики расхода по напиткам
@@ -1635,17 +1669,17 @@ async function submitVisit() {
       const val = parseInt(document.getElementById('drink-'+i)?.value||'0') || 0;
       if (val > 0) cRows.push([client, serial, ds, d.name.trim(), parseInt(d.size)||0, val]);
     });
-    if (cRows.length) promises.push(scriptPost({ action:'addCounters', rows:cRows }, 1, 45000));
+    if (cRows.length) {
+      await scriptPost({ action:'addCounters', rows:cRows }, 2, 45000, targetUrl);
+    }
 
     // 3. Общие счётчики
     const gen = v('general-counter');
     const eng = v('engineer-counter');
     if (gen || eng) {
-      promises.push(scriptPost({ action:'addGenCounters', row:[client, serial, ds, gen||'', eng||''] }));
+      await scriptPost({ action:'addGenCounters', row:[client, serial, ds, gen||'', eng||''] }, 2, 25000, targetUrl);
     }
 
-    // Отправляем всё одновременно
-    await Promise.all(promises);
     showToast('✓ Визит сохранён!');
     // Запоминаем клиента и машину — НЕ перезагружаем все данные (долго)
     const savedClient  = document.getElementById('visit-client').value;
@@ -1733,6 +1767,25 @@ function buildHistoryTable(visits) {
     rows + '</table></div>';
 }
 
+// Переключение режима «по дате визита» / «за период»
+function onDashPeriodModeToggle() {
+  const on = document.getElementById('dash-period-mode').checked;
+  document.getElementById('dash-period-fields').style.display = on ? 'flex' : 'none';
+  document.getElementById('dash-date').disabled = on;
+  document.getElementById('dash-date').style.opacity = on ? '0.4' : '1';
+  if (on) {
+    const fromEl = document.getElementById('dash-period-from');
+    const toEl   = document.getElementById('dash-period-to');
+    if (!toEl.value) {
+      const today = new Date();
+      const weekAgo = new Date(); weekAgo.setDate(today.getDate() - 7);
+      const fmt = d => d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+      fromEl.value = fmt(weekAgo);
+      toEl.value   = fmt(today);
+    }
+  }
+}
+
 async function loadDash() {
   const client = document.getElementById('dash-client').value;
   if (!client) { showToast('Выберите клиента', true); return; }
@@ -1758,8 +1811,32 @@ async function loadDash() {
       String(r[3]||'').toLowerCase() !== 'доп.загрузка'
     );
 
+    // Исключаем визиты техников, если включён соответствующий чекбокс
+    const TECH_NAMES = ['кухарь', 'зинчук'];
+    const excludeTech = document.getElementById('dash-exclude-tech')?.checked;
+    if (excludeTech) {
+      myVisits = myVisits.filter(r => !TECH_NAMES.includes(String(r[2]||'').trim().toLowerCase()));
+    }
+
+    const periodMode = document.getElementById('dash-period-mode')?.checked;
     let targetVisit=null, prevVisit=null;
-    if (dateInput) {
+
+    if (periodMode) {
+      // Режим «за период»: targetVisit — последний визит ВНУТРИ диапазона (конец),
+      // prevVisit — последний визит ДО начала диапазона (стартовая точка для разницы счётчиков)
+      const fromRaw = document.getElementById('dash-period-from')?.value || '';
+      const toRaw   = document.getElementById('dash-period-to')?.value   || '';
+      const toDashDate = iso => { if(!iso) return ''; const [y,m,d]=iso.split('-'); return `${d}.${m}.${y}`; };
+      const fromDate = toDashDate(fromRaw);
+      const toDate   = toDashDate(toRaw);
+
+      const inRange = myVisits.filter(r => {
+        const d = fmtDate(r[1]);
+        return (!fromDate || d >= fromDate) && (!toDate || d <= toDate);
+      });
+      targetVisit = inRange[0] || null; // myVisits отсортирован новые→старые, значит первый внутри диапазона — самый свежий
+      prevVisit   = fromDate ? (myVisits.find(r => fmtDate(r[1]) < fromDate) || null) : null;
+    } else if (dateInput) {
       targetVisit = myVisits.find(r => fmtDate(r[1]) === dateInput) || null;
       prevVisit   = myVisits.find(r => fmtDate(r[1]) < dateInput)   || null;
     } else {
@@ -1915,7 +1992,7 @@ async function loadDash() {
     ${targetVisit ? `
     <div style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:10px 16px;margin-bottom:12px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:6px">
       <div style="font-family:var(--font-head);font-size:12px;color:var(--accent);letter-spacing:.05em">
-        ${dateInput?'ВИЗИТ':'ПОСЛЕДНИЙ ВИЗИТ'} — ${fmtDate(targetVisit[1])} · ${visitMachObj?visitMachObj.id+' '+visitMachObj.model:visitMachId}
+        ${periodMode ? `ЗА ПЕРИОД ${prevVisit?fmtDate(prevVisit[1]):'—'} → ${fmtDate(targetVisit[1])}` : (dateInput?'ВИЗИТ':'ПОСЛЕДНИЙ ВИЗИТ')} — ${periodMode?'':fmtDate(targetVisit[1])+' · '}${visitMachObj?visitMachObj.id+' '+visitMachObj.model:visitMachId}
       </div>
       ${targetVisit[3] ? `<div style="font-size:12px;color:var(--muted)">💬 ${targetVisit[3]}</div>` : ''}
     </div>` : '<div class="empty-state">Визитов пока нет</div>'}
@@ -2135,6 +2212,7 @@ async function submitChange() {
   const type    = document.querySelector('input[name="chg-type"]:checked')?.value;
   if (!type) { showToast('Выберите тип изменения', true); return; }
   if (type !== 'другое' && (!client||!machine)) { showToast('Выберите клиента и аппарат', true); return; }
+  const targetUrl = getClientScriptUrl(client); // таблица, к которой относится клиент (для admin/tech)
   const di=document.getElementById('chg-date').value;
   const ds=di?(()=>{const[y,m,d]=di.split('-');return`${d}.${m}.${y}`})():(()=>{const n=new Date();return`${String(n.getDate()).padStart(2,'0')}.${String(n.getMonth()+1).padStart(2,'0')}.${n.getFullYear()}`})();
   const note=document.getElementById('chg-note').value.trim();
@@ -2155,14 +2233,14 @@ async function submitChange() {
     rows.push([ds,client,machine,'смена аппарата',machine,nid||nm||'—',CFG.name,note]);
     if (nid&&nm) {
       await Promise.all([
-        scriptPost({action:'addEquipment',row:[nid,client,nm,ns||nid,ds,'','активна',nk||0.01,'']}),
-        scriptPost({action:'updateEquipmentStatus',machineId:machine,dateOff:ds,status:os})
+        scriptPost({action:'addEquipment',row:[nid,client,nm,ns||nid,ds,'','активна',nk||0.01,'']}, 2, 25000, targetUrl),
+        scriptPost({action:'updateEquipmentStatus',machineId:machine,dateOff:ds,status:os}, 2, 25000, targetUrl)
       ]);
     }
     // Начальные счётчики
     const chgGen=document.getElementById('chg-gen-counter')?.value;
     const chgEng=document.getElementById('chg-eng-counter')?.value;
-    if ((chgGen||chgEng)&&nid) await scriptPost({action:'addGenCounters',row:[client,nid,ds,chgGen||'',chgEng||'']});
+    if ((chgGen||chgEng)&&nid) await scriptPost({action:'addGenCounters',row:[client,nid,ds,chgGen||'',chgEng||'']}, 2, 25000, targetUrl);
     // Напитки
     const chgDL=document.getElementById('chg-drinks-list');
     if (chgDL&&nid) {
@@ -2176,7 +2254,7 @@ async function submitChange() {
         const dmr=document.getElementById('chg-d-moroz-'+i)?.value;
         if(dn) chgDRows.push([client,dn,nid,ds,'',dsz||'','',dm||'',dv||'',dsk||'',dmr||'']);
       });
-      if(chgDRows.length) await scriptPost({action:'addDrinks',rows:chgDRows});
+      if(chgDRows.length) await scriptPost({action:'addDrinks',rows:chgDRows}, 2, 25000, targetUrl);
     }
   } else if (type==='другое') {
     const otherText=document.getElementById('chg-other-text')?.value.trim()||'';
@@ -2185,12 +2263,12 @@ async function submitChange() {
     rows.push([ds,client,machine,'контакт','—',document.getElementById('chg-new-contact').value,CFG.name,note]);
   } else if (type==='деактивация') {
     rows.push([ds,client,machine,'деактивация ТТ','Да','Нет',CFG.name,note]);
-    await scriptPost({ action:'deactivateClient', clientName:client });
+    await scriptPost({ action:'deactivateClient', clientName:client }, 2, 25000, targetUrl);
   }
   if (!rows.length) { showToast('Нет данных', true); return; }
   const btn=document.querySelector('#page-changes .btn-submit');
   btn.disabled=true; document.getElementById('chg-spinner').style.display='block'; document.getElementById('chg-label').textContent='Сохраняем...';
-  try { await scriptPost({action:'addHistory',rows}); showToast('✓ Изменение сохранено!'); document.getElementById('chg-note').value=''; await fetchAllData(); }
+  try { await scriptPost({action:'addHistory',rows}, 2, 25000, targetUrl); showToast('✓ Изменение сохранено!'); document.getElementById('chg-note').value=''; await fetchAllData(); }
   catch(e){showToast('Ошибка: '+e.message,true);}
   finally{btn.disabled=false;document.getElementById('chg-spinner').style.display='none';document.getElementById('chg-label').textContent='Сохранить изменение';}
 }
@@ -2755,7 +2833,7 @@ function escposQR(bytes, push, data) {
   push([0x1D, 0x28, 0x6B, 0x03, 0x00, 0x31, 0x51, 0x30]);
 }
 
-function escposEncode(invoice) {
+function escposEncode(invoice, copyLabel) {
   const bytes = [];
   const push = arr => arr.forEach(b => bytes.push(b));
   const ESC = 0x1B, GS = 0x1D;
@@ -2774,6 +2852,7 @@ function escposEncode(invoice) {
 
   textLine('Ароматна кава');
   textLine('MEGA UG COFFEE', true);
+  if (copyLabel) textLine(copyLabel, true);
   textLine('------------------------------');
   push([ESC, 0x61, 0x00]); // влево
   textLine('Клiєнт: ' + invoice.client);
@@ -2872,15 +2951,22 @@ async function printInvoiceReceipt() {
   if (!char) char = await connectPrinter();
   if (!char) return;
 
-  try {
-    setPrintStatus('Печать…');
-    const data = escposEncode(_lastInvoiceForPrint);
+  async function sendBytes(data) {
     const CHUNK = 180;
     for (let i = 0; i < data.length; i += CHUNK) {
       const chunk = data.slice(i, i + CHUNK);
       await char.writeValue(chunk);
       await new Promise(r => setTimeout(r, 40));
     }
+  }
+
+  try {
+    setPrintStatus('Печать…');
+    // Экземпляр 1 — для клиента (без пометки)
+    await sendBytes(escposEncode(_lastInvoiceForPrint));
+    await new Promise(r => setTimeout(r, 300)); // пауза между чеками
+    // Экземпляр 2 — для компании, с пометкой
+    await sendBytes(escposEncode(_lastInvoiceForPrint, 'Екземпляр MEGA UG'));
     setPrintStatus('Готово');
   } catch (e) {
     setPrintStatus('Ошибка печати');
