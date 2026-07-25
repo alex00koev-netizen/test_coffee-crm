@@ -208,7 +208,8 @@ function buildTest(){
   const ascii=s=>{for(let i=0;i<s.length;i++)b.push(s.charCodeAt(i));b.push(0x0A)};
 
   push([0x1B,0x40]);
-  ascii('TEST CODEPAGE');
+  push([0x1C,0x2E]); // FS . — выход из режима китайских иероглифов (Kanji mode)
+  ascii('TEST CODEPAGE v2');
   ascii('MEGA UG');
   ascii('------------------------------');
 
@@ -220,6 +221,7 @@ function buildTest(){
   ascii('------------------------------');
 
   CANDIDATES.forEach(n=>{
+    push([0x1C,0x2E]); // повторяем на каждом шаге — на случай если ESC t сама включает Kanji обратно
     push([0x1B,0x74,n]);
     ascii('n='+n+' cp1251:');
     push(cp1251(SAMPLE)); push([0x0A]);
